@@ -24,16 +24,17 @@
           <span class="auth-mark" style="font-size:2rem;">🛡️</span>
           <p class="eyebrow">RESTRICTED ACCESS</p>
           <h2>Biofolio Admin Portal</h2>
-          <p class="auth-sub">Sign in with an authorized administrator account.</p>
+          <p class="auth-sub" id="adminAuthSub">Sign in with an authorized administrator account.</p>
         </div>
 
+        <!-- Password Mode -->
         <form id="adminLoginForm" class="auth-form">
           <div class="auth-field">
             <label for="adminEmail">Admin Email</label>
-            <input type="email" id="adminEmail" required placeholder="admin@biofolio.site" />
+            <input type="email" id="adminEmail" required placeholder="isreeharim@gmail.com" />
           </div>
 
-          <div class="auth-field">
+          <div class="auth-field" id="adminPasswordField">
             <label for="adminPassword">Password</label>
             <input type="password" id="adminPassword" required placeholder="••••••••" />
           </div>
@@ -45,8 +46,27 @@
           </button>
         </form>
 
-        <div class="auth-modal-footer">
-          <a href="index.html" class="text-link">← Return to Public Site</a>
+        <!-- OTP Verify Mode (Hidden by default) -->
+        <form id="adminOtpVerifyForm" class="auth-form" style="display:none;">
+          <div class="otp-boxes-group" style="justify-content:center;margin:12px 0;">
+            <input type="text" class="otp-digit admin-otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" autofocus />
+            <input type="text" class="otp-digit admin-otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+            <input type="text" class="otp-digit admin-otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+            <input type="text" class="otp-digit admin-otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+            <input type="text" class="otp-digit admin-otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+            <input type="text" class="otp-digit admin-otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+          </div>
+
+          <div class="auth-error-box" id="adminOtpError"></div>
+
+          <button type="submit" class="btn-primary auth-submit-btn" id="adminOtpVerifyBtn" style="background:#1f2937;">
+            <span>Verify OTP &amp; Enter Portal</span> <span class="arrow">→</span>
+          </button>
+        </form>
+
+        <div class="auth-modal-footer" style="display:flex;justify-content:space-between;align-items:center;">
+          <a href="index.html" class="text-link">← Public Site</a>
+          <button type="button" class="text-link" id="adminToggleOtpBtn">Use Email OTP Code ✉</button>
         </div>
       </div>
     </div>
