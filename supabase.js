@@ -35,6 +35,44 @@ export async function checkUsernameAvailability(username) {
 }
 
 // User Authentication Helpers
+export async function sendEmailOtp({ email, username, displayName }) {
+  if (!supabaseClient) throw new Error('Supabase client not initialized');
+  
+  const metadata = {};
+  if (username) {
+    metadata.username = username.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  }
+  if (displayName) {
+    metadata.display_name = displayName;
+  }
+  metadata.role = 'user';
+
+  const { data, error } = await supabaseClient.auth.signInWithOtp({
+    email,
+    options: {
+      data: metadata,
+      shouldCreateUser: true
+    }
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function verifyEmailOtp({ email, token }) {
+  if (!supabaseClient) throw new Error('Supabase client not initialized');
+  const cleanToken = String(token).trim();
+
+  const { data, error } = await supabaseClient.auth.verifyOtp({
+    email,
+    token: cleanToken,
+    type: 'email'
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 export async function signUpUser({ email, password, username, displayName }) {
   if (!supabaseClient) throw new Error('Supabase client not initialized');
   const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_-]/g, '');

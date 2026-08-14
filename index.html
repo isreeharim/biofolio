@@ -379,123 +379,87 @@
       </div>
     </footer>
 
-    <!-- ================= AUTH MODALS ================= -->
-
-    <!-- Sign Up Modal -->
-    <div class="modal-backdrop" id="signupModal">
+    <!-- ================= 100% PASSWORDLESS EMAIL OTP AUTH MODAL ================= -->
+    <div class="modal-backdrop" id="otpAuthModal">
       <div class="auth-modal-card">
-        <button type="button" class="modal-close" id="signupClose">×</button>
-        <div class="auth-modal-header">
-          <span class="auth-mark">✦</span>
-          <p class="eyebrow">CREATE ACCOUNT</p>
-          <h2>Start your Biofolio</h2>
-          <p class="auth-sub">Choose your username and claim your page in seconds.</p>
-        </div>
-
-        <form id="signupForm" class="auth-form" autocomplete="on">
-          <div class="auth-field">
-            <label for="suDisplayName">Your Name</label>
-            <input type="text" id="suDisplayName" name="display_name" placeholder="e.g. Amelia Parker" required />
+        <button type="button" class="modal-close" id="otpClose">×</button>
+        
+        <!-- STEP 1: Request OTP Code -->
+        <div id="otpStepRequest">
+          <div class="auth-modal-header">
+            <span class="auth-mark">✦</span>
+            <p class="eyebrow" id="otpModalEyebrow">PASSWORDLESS SIGN IN</p>
+            <h2 id="otpModalTitle">Get your magic code</h2>
+            <p class="auth-sub" id="otpModalSub">No passwords to remember. We’ll email you a secure 6-digit login code.</p>
           </div>
 
-          <div class="auth-field">
-            <label for="suUsername">Username / Address</label>
-            <div class="auth-input-prefix-wrap">
-              <span class="prefix">biofolio.site/</span>
-              <input type="text" id="suUsername" name="username" placeholder="amelia" required autocomplete="off" spellcheck="false" />
+          <form id="otpRequestForm" class="auth-form">
+            <div class="auth-field" id="otpNameField">
+              <label for="otpName">Your Name</label>
+              <input type="text" id="otpName" name="display_name" placeholder="e.g. Amelia Parker" />
             </div>
-            <div class="field-hint" id="suUsernameHint">Letters, numbers, hyphens, and underscores only.</div>
-          </div>
 
-          <div class="auth-field">
-            <label for="suEmail">Email Address</label>
-            <input type="email" id="suEmail" name="email" placeholder="amelia@example.com" required />
-          </div>
-
-          <div class="auth-field">
-            <label for="suPassword">Password</label>
-            <input type="password" id="suPassword" name="password" minlength="6" placeholder="At least 6 characters" required />
-          </div>
-
-          <div class="auth-error-box" id="signupError"></div>
-
-          <button type="submit" class="btn-primary auth-submit-btn" id="signupSubmitBtn">
-            <span>Create my portfolio</span> <span class="arrow">→</span>
-          </button>
-        </form>
-
-        <div class="auth-modal-footer">
-          Already have an account? <button type="button" class="text-link" id="switchToLogin">Sign in</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Login Modal -->
-    <div class="modal-backdrop" id="loginModal">
-      <div class="auth-modal-card">
-        <button type="button" class="modal-close" id="loginClose">×</button>
-        <div class="auth-modal-header">
-          <span class="auth-mark">✦</span>
-          <p class="eyebrow">WELCOME BACK</p>
-          <h2>Sign in to Biofolio</h2>
-          <p class="auth-sub">Continue editing your portfolio and checking your reach.</p>
-        </div>
-
-        <form id="loginForm" class="auth-form" autocomplete="on">
-          <div class="auth-field">
-            <label for="liEmail">Email Address</label>
-            <input type="email" id="liEmail" name="email" placeholder="you@example.com" required />
-          </div>
-
-          <div class="auth-field">
-            <div class="label-with-action">
-              <label for="liPassword">Password</label>
-              <button type="button" class="text-link forgot-btn" id="forgotPasswordBtn">Forgot?</button>
+            <div class="auth-field" id="otpUsernameField">
+              <label for="otpUsername">Your Custom Handle</label>
+              <div class="auth-input-prefix-wrap">
+                <span class="prefix">biofolio.site/</span>
+                <input type="text" id="otpUsername" name="username" placeholder="amelia" autocomplete="off" spellcheck="false" />
+              </div>
+              <div class="field-hint" id="otpUsernameHint">Claim your unique public link.</div>
             </div>
-            <input type="password" id="liPassword" name="password" placeholder="Your password" required />
+
+            <div class="auth-field">
+              <label for="otpEmail">Email Address *</label>
+              <input type="email" id="otpEmail" name="email" placeholder="amelia@example.com" required />
+            </div>
+
+            <div class="auth-error-box" id="otpRequestError"></div>
+
+            <button type="submit" class="btn-primary auth-submit-btn" id="otpRequestSubmitBtn">
+              <span>Send 6-Digit Code</span> <span class="arrow">→</span>
+            </button>
+          </form>
+
+          <div class="auth-modal-footer">
+            <span id="otpTogglePrompt">Already have an account?</span>
+            <button type="button" class="text-link" id="otpToggleModeBtn">Sign In with OTP</button>
+          </div>
+        </div>
+
+        <!-- STEP 2: Verify 6-Digit Code -->
+        <div id="otpStepVerify" style="display:none;">
+          <div class="auth-modal-header">
+            <span class="auth-mark">✉</span>
+            <p class="eyebrow">CHECK YOUR INBOX</p>
+            <h2>Enter verification code</h2>
+            <p class="auth-sub">We sent a 6-digit code to <strong id="otpTargetEmail">you@example.com</strong></p>
           </div>
 
-          <div class="auth-error-box" id="loginError"></div>
+          <form id="otpVerifyForm" class="auth-form">
+            <div class="otp-boxes-group">
+              <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" autofocus autocomplete="one-time-code" />
+              <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+              <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+              <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+              <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+              <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" />
+            </div>
 
-          <button type="submit" class="btn-primary auth-submit-btn" id="loginSubmitBtn">
-            <span>Sign in to Studio</span> <span class="arrow">→</span>
-          </button>
-        </form>
+            <div class="auth-error-box" id="otpVerifyError"></div>
 
-        <div class="auth-modal-footer">
-          Don’t have an account? <button type="button" class="text-link" id="switchToSignup">Create one free</button>
-        </div>
-      </div>
-    </div>
+            <button type="submit" class="btn-primary auth-submit-btn" id="otpVerifySubmitBtn">
+              <span>Verify &amp; Launch Studio</span> <span class="arrow">→</span>
+            </button>
+          </form>
 
-    <!-- Forgot Password Modal -->
-    <div class="modal-backdrop" id="forgotModal">
-      <div class="auth-modal-card">
-        <button type="button" class="modal-close" id="forgotClose">×</button>
-        <div class="auth-modal-header">
-          <span class="auth-mark">✦</span>
-          <p class="eyebrow">ACCOUNT RECOVERY</p>
-          <h2>Reset password</h2>
-          <p class="auth-sub">Enter your email and we’ll send a link to reset your password.</p>
-        </div>
-
-        <form id="forgotForm" class="auth-form">
-          <div class="auth-field">
-            <label for="fpEmail">Email Address</label>
-            <input type="email" id="fpEmail" name="email" placeholder="you@example.com" required />
+          <div class="auth-modal-footer">
+            <span>Didn’t receive it?</span>
+            <button type="button" class="text-link" id="otpResendBtn">Resend Code</button>
+            <span style="opacity:0.3;margin:0 4px;">·</span>
+            <button type="button" class="text-link" id="otpChangeEmailBtn">Change Email</button>
           </div>
-
-          <div class="auth-error-box" id="forgotError"></div>
-          <div class="auth-success-box" id="forgotSuccess"></div>
-
-          <button type="submit" class="btn-primary auth-submit-btn" id="forgotSubmitBtn">
-            <span>Send reset link</span> <span class="arrow">→</span>
-          </button>
-        </form>
-
-        <div class="auth-modal-footer">
-          Remembered your password? <button type="button" class="text-link" id="forgotBackToLogin">Back to sign in</button>
         </div>
+
       </div>
     </div>
 

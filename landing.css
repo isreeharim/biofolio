@@ -975,6 +975,51 @@ button {
   font-size: 0.8rem;
 }
 
+/* 6-Digit OTP Verification Inputs */
+.otp-boxes-group {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 12px 0 14px;
+}
+
+.otp-digit {
+  width: 48px;
+  height: 56px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: center;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  font-family: "DM Mono", monospace;
+  color: var(--text-main);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.otp-digit:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(110, 93, 205, 0.16);
+  background: #faf8ff;
+}
+
+.otp-digit.filled {
+  border-color: #a78bfa;
+  background: #fdfcff;
+}
+
+@media (max-width: 480px) {
+  .otp-boxes-group {
+    gap: 6px;
+  }
+  .otp-digit {
+    width: 40px;
+    height: 48px;
+    font-size: 1.3rem;
+  }
+}
+
 /* Responsive Media Queries */
 @media (max-width: 960px) {
   .hero-container {

@@ -1,9 +1,8 @@
-// Biofolio Landing Page Logic
+// Biofolio Landing Page - 100% Passwordless Email OTP Authentication
 import { 
   checkUsernameAvailability, 
-  signUpUser, 
-  signInUser, 
-  resetPasswordForEmail, 
+  sendEmailOtp,
+  verifyEmailOtp,
   getCurrentUser, 
   getCurrentProfile 
 } from './supabase.js';
@@ -14,12 +13,15 @@ const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)]
 
 // State
 let checkTimeout = null;
+let currentAuthMode = 'signup'; // 'signup' | 'login'
+let pendingEmail = '';
+let resendTimerInterval = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   initSessionCheck();
   initHeroHandleChecker();
   initHeroThemeSwitcher();
-  initAuthModals();
+  initOtpAuthSystem();
 });
 
 // 1. Session Check & Header State
@@ -31,19 +33,21 @@ async function initSessionCheck() {
       const authNav = $('#authNavButtons');
       const displayName = profile?.display_name || user.email.split('@')[0];
       
-      authNav.innerHTML = `
-        <a href="index.html" class="btn-ghost">Studio</a>
-        <a href="index.html" class="btn-primary">
-          <span>Go to Studio</span>
-          <span>→</span>
-        </a>
-      `;
+      if (authNav) {
+        authNav.innerHTML = `
+          <a href="builder.html" class="btn-ghost">Studio</a>
+          <a href="builder.html" class="btn-primary">
+            <span>Go to Studio</span>
+            <span>→</span>
+          </a>
+        `;
+      }
 
       const bottomCta = $('#bottomCtaBtn');
       if (bottomCta) {
         bottomCta.textContent = 'Go to your Studio →';
         bottomCta.addEventListener('click', () => {
-          window.location.href = 'index.html';
+          window.location.href = 'builder.html';
         });
       }
     }
@@ -116,14 +120,7 @@ function initHeroHandleChecker() {
   claimForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const cleanVal = handleInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    if (!cleanVal) return;
-
-    // Prefill username in signup modal and open it
-    const suUsername = $('#suUsername');
-    if (suUsername) {
-      suUsername.value = cleanVal;
-    }
-    openModal('signupModal');
+    openOtpModal('signup', cleanVal);
   });
 }
 
@@ -145,160 +142,293 @@ function initHeroThemeSwitcher() {
   });
 }
 
-// 4. Modal Management & Auth Form Submissions
-function initAuthModals() {
-  // Triggers
-  $('#loginNavBtn')?.addEventListener('click', () => openModal('loginModal'));
-  $('#signupNavBtn')?.addEventListener('click', () => openModal('signupModal'));
+// 4. 100% Passwordless Email OTP Authentication System
+function initOtpAuthSystem() {
+  const modal = $('#otpAuthModal');
+  const closeBtn = $('#otpClose');
+  const toggleModeBtn = $('#otpToggleModeBtn');
+  const changeEmailBtn = $('#otpChangeEmailBtn');
+  const resendBtn = $('#otpResendBtn');
+
+  // Nav buttons
+  $('#loginNavBtn')?.addEventListener('click', () => openOtpModal('login'));
+  $('#signupNavBtn')?.addEventListener('click', () => openOtpModal('signup'));
   $('#bottomCtaBtn')?.addEventListener('click', () => {
     const heroInput = $('#heroHandleInput');
-    if (heroInput && heroInput.value.trim()) {
-      $('#suUsername').value = heroInput.value.trim();
+    const handle = heroInput ? heroInput.value.trim() : '';
+    openOtpModal('signup', handle);
+  });
+
+  // Close modal
+  closeBtn?.addEventListener('click', () => modal.classList.remove('show'));
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.remove('show');
+  });
+
+  // Toggle Signup / Login Mode
+  toggleModeBtn?.addEventListener('click', () => {
+    openOtpModal(currentAuthMode === 'signup' ? 'login' : 'signup');
+  });
+
+  // Change email in verify step
+  changeEmailBtn?.addEventListener('click', () => {
+    $('#otpStepVerify').style.display = 'none';
+    $('#otpStepRequest').style.display = 'block';
+  });
+
+  // Resend OTP code
+  resendBtn?.addEventListener('click', async () => {
+    if (resendBtn.disabled || !pendingEmail) return;
+    try {
+      resendBtn.disabled = true;
+      resendBtn.textContent = 'Sending...';
+      await sendEmailOtp({ email: pendingEmail });
+      showToast('A new 6-digit code has been sent!');
+      startResendCountdown();
+    } catch (err) {
+      showToast(`Resend failed: ${err.message}`);
+      resendBtn.disabled = false;
+      resendBtn.textContent = 'Resend Code';
     }
-    openModal('signupModal');
   });
 
-  // Switchers
-  $('#switchToLogin')?.addEventListener('click', () => {
-    closeModal('signupModal');
-    openModal('loginModal');
-  });
-
-  $('#switchToSignup')?.addEventListener('click', () => {
-    closeModal('loginModal');
-    openModal('signupModal');
-  });
-
-  $('#forgotPasswordBtn')?.addEventListener('click', () => {
-    closeModal('loginModal');
-    openModal('forgotModal');
-  });
-
-  $('#forgotBackToLogin')?.addEventListener('click', () => {
-    closeModal('forgotModal');
-    openModal('loginModal');
-  });
-
-  // Close buttons
-  $$('.modal-close').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const modal = e.target.closest('.modal-backdrop');
-      if (modal) modal.classList.remove('show');
-    });
-  });
-
-  $$('.modal-backdrop').forEach(backdrop => {
-    backdrop.addEventListener('click', (e) => {
-      if (e.target === backdrop) backdrop.classList.remove('show');
-    });
-  });
-
-  // Sign Up Form Submit
-  const signupForm = $('#signupForm');
-  signupForm?.addEventListener('submit', async (e) => {
+  // STEP 1: Request OTP Form
+  const requestForm = $('#otpRequestForm');
+  requestForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const errorBox = $('#signupError');
-    const submitBtn = $('#signupSubmitBtn');
+    const errorBox = $('#otpRequestError');
+    const submitBtn = $('#otpRequestSubmitBtn');
     errorBox.classList.remove('show');
 
-    const displayName = $('#suDisplayName').value.trim();
-    const username = $('#suUsername').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    const email = $('#suEmail').value.trim();
-    const password = $('#suPassword').value;
+    const email = $('#otpEmail').value.trim();
+    const name = $('#otpName').value.trim();
+    const rawUsername = $('#otpUsername').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
-    if (!username || username.length < 3) {
-      showError(errorBox, 'Username must be at least 3 characters.');
-      return;
-    }
+    if (!email) return;
 
-    try {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span>Creating your portfolio...</span>';
-
-      // Check availability first
-      const check = await checkUsernameAvailability(username);
-      if (!check.available) {
-        throw new Error(check.error || 'Username is already taken. Please pick another.');
+    if (currentAuthMode === 'signup' && rawUsername) {
+      if (rawUsername.length < 3) {
+        showError(errorBox, 'Username must be at least 3 characters.');
+        return;
       }
 
-      await signUpUser({ email, password, username, displayName });
-      showToast('Account created successfully! Redirecting...');
-      
-      setTimeout(() => {
-        window.location.href = 'index.html';
-      }, 1000);
-    } catch (err) {
-      showError(errorBox, err.message || 'Failed to sign up. Please try again.');
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span>Create my portfolio</span> <span class="arrow">→</span>';
+      // Check handle availability
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Checking handle...</span>';
+      try {
+        const check = await checkUsernameAvailability(rawUsername);
+        if (!check.available) {
+          throw new Error(check.error || 'Username is already taken. Please pick another.');
+        }
+      } catch (err) {
+        showError(errorBox, err.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Send 6-Digit Code</span> <span class="arrow">→</span>';
+        return;
+      }
     }
-  });
-
-  // Login Form Submit
-  const loginForm = $('#loginForm');
-  loginForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const errorBox = $('#loginError');
-    const submitBtn = $('#loginSubmitBtn');
-    errorBox.classList.remove('show');
-
-    const email = $('#liEmail').value.trim();
-    const password = $('#liPassword').value;
 
     try {
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span>Signing in...</span>';
+      submitBtn.innerHTML = '<span>Sending magic code...</span>';
 
-      await signInUser({ email, password });
-      showToast('Signed in successfully! Redirecting...');
+      await sendEmailOtp({
+        email,
+        username: currentAuthMode === 'signup' ? rawUsername : undefined,
+        displayName: currentAuthMode === 'signup' ? name : undefined
+      });
 
-      setTimeout(() => {
-        window.location.href = 'index.html';
-      }, 800);
+      pendingEmail = email;
+      $('#otpTargetEmail').textContent = email;
+
+      // Switch to Step 2
+      $('#otpStepRequest').style.display = 'none';
+      $('#otpStepVerify').style.display = 'block';
+      clearOtpDigits();
+      startResendCountdown();
+
+      // Focus first box
+      const firstDigit = $('.otp-digit', $('#otpVerifyForm'));
+      if (firstDigit) firstDigit.focus();
+
+      showToast(`6-digit code sent to ${email}`);
     } catch (err) {
-      showError(errorBox, err.message || 'Invalid email or password.');
+      showError(errorBox, err.message || 'Could not send verification code. Please check your email.');
+    } finally {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span>Sign in to Studio</span> <span class="arrow">→</span>';
+      submitBtn.innerHTML = '<span>Send 6-Digit Code</span> <span class="arrow">→</span>';
     }
   });
 
-  // Forgot Password Form Submit
-  const forgotForm = $('#forgotForm');
-  forgotForm?.addEventListener('submit', async (e) => {
+  // STEP 2: OTP Digit Inputs & Form Submit
+  initOtpDigitInputs();
+
+  const verifyForm = $('#otpVerifyForm');
+  verifyForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const errorBox = $('#forgotError');
-    const successBox = $('#forgotSuccess');
-    const submitBtn = $('#forgotSubmitBtn');
-    errorBox.classList.remove('show');
-    successBox.classList.remove('show');
-
-    const email = $('#fpEmail').value.trim();
-
-    try {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span>Sending link...</span>';
-
-      await resetPasswordForEmail(email);
-      successBox.textContent = `Password reset email sent to ${email}. Check your inbox!`;
-      successBox.classList.add('show');
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span>Send reset link</span> <span class="arrow">→</span>';
-    } catch (err) {
-      showError(errorBox, err.message || 'Failed to send reset link.');
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span>Send reset link</span> <span class="arrow">→</span>';
-    }
+    await handleOtpVerification();
   });
 }
 
-function openModal(id) {
-  const modal = $(`#${id}`);
-  if (modal) modal.classList.add('show');
+function openOtpModal(mode = 'signup', prefilledHandle = '') {
+  currentAuthMode = mode;
+  const modal = $('#otpAuthModal');
+  const eyebrow = $('#otpModalEyebrow');
+  const title = $('#otpModalTitle');
+  const sub = $('#otpModalSub');
+  const nameField = $('#otpNameField');
+  const usernameField = $('#otpUsernameField');
+  const togglePrompt = $('#otpTogglePrompt');
+  const toggleBtn = $('#otpToggleModeBtn');
+  const usernameInput = $('#otpUsername');
+  const submitBtn = $('#otpRequestSubmitBtn');
+
+  // Reset to Step 1
+  $('#otpStepRequest').style.display = 'block';
+  $('#otpStepVerify').style.display = 'none';
+  $('#otpRequestError').classList.remove('show');
+  $('#otpVerifyError').classList.remove('show');
+
+  if (mode === 'signup') {
+    eyebrow.textContent = 'CREATE ACCOUNT';
+    title.textContent = 'Start your Biofolio';
+    sub.textContent = 'Enter your email to receive a secure 6-digit login code. No passwords required.';
+    nameField.style.display = 'flex';
+    usernameField.style.display = 'flex';
+    togglePrompt.textContent = 'Already have an account?';
+    toggleBtn.textContent = 'Sign In with OTP';
+    submitBtn.innerHTML = '<span>Send 6-Digit Code</span> <span class="arrow">→</span>';
+
+    if (prefilledHandle) {
+      usernameInput.value = prefilledHandle;
+    }
+  } else {
+    eyebrow.textContent = 'WELCOME BACK';
+    title.textContent = 'Sign In to Biofolio';
+    sub.textContent = 'Enter your email and we’ll send you a 6-digit magic code to access your studio.';
+    nameField.style.display = 'none';
+    usernameField.style.display = 'none';
+    togglePrompt.textContent = 'Don’t have an account?';
+    toggleBtn.textContent = 'Create one free';
+    submitBtn.innerHTML = '<span>Send 6-Digit Code</span> <span class="arrow">→</span>';
+  }
+
+  modal.classList.add('show');
+  const firstInput = mode === 'signup' ? ($('#otpName') || $('#otpEmail')) : $('#otpEmail');
+  if (firstInput) firstInput.focus();
 }
 
-function closeModal(id) {
-  const modal = $(`#${id}`);
-  if (modal) modal.classList.remove('show');
+function initOtpDigitInputs() {
+  const digits = $$('.otp-digit');
+  
+  digits.forEach((input, idx) => {
+    // Input handling
+    input.addEventListener('input', (e) => {
+      const val = input.value.replace(/[^0-9]/g, '');
+      input.value = val ? val[0] : '';
+      input.classList.toggle('filled', !!input.value);
+
+      if (val && idx < digits.length - 1) {
+        digits[idx + 1].focus();
+      }
+
+      // If all filled, auto-submit
+      const fullCode = digits.map(d => d.value).join('');
+      if (fullCode.length === 6) {
+        handleOtpVerification();
+      }
+    });
+
+    // Keydown (Backspace navigation)
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !input.value && idx > 0) {
+        digits[idx - 1].focus();
+      }
+    });
+
+    // Paste handling (paste entire 6-digit code)
+    input.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+      if (!pasted) return;
+
+      const chars = pasted.split('').slice(0, 6);
+      chars.forEach((char, i) => {
+        if (digits[i]) {
+          digits[i].value = char;
+          digits[i].classList.add('filled');
+        }
+      });
+
+      if (chars.length < 6) {
+        digits[chars.length].focus();
+      } else {
+        digits[5].focus();
+        handleOtpVerification();
+      }
+    });
+  });
+}
+
+function clearOtpDigits() {
+  $$('.otp-digit').forEach(d => {
+    d.value = '';
+    d.classList.remove('filled');
+  });
+}
+
+async function handleOtpVerification() {
+  const digits = $$('.otp-digit');
+  const token = digits.map(d => d.value).join('');
+  const errorBox = $('#otpVerifyError');
+  const submitBtn = $('#otpVerifySubmitBtn');
+  errorBox.classList.remove('show');
+
+  if (token.length < 6) {
+    showError(errorBox, 'Please enter all 6 digits of the code.');
+    return;
+  }
+
+  try {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span>Verifying code...</span>';
+
+    await verifyEmailOtp({
+      email: pendingEmail,
+      token: token
+    });
+
+    showToast('Authenticated! Launching your Creator Studio...');
+    
+    setTimeout(() => {
+      window.location.href = 'builder.html';
+    }, 600);
+  } catch (err) {
+    showError(errorBox, err.message || 'Invalid or expired code. Please try again.');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<span>Verify &amp; Launch Studio</span> <span class="arrow">→</span>';
+  }
+}
+
+function startResendCountdown() {
+  const resendBtn = $('#otpResendBtn');
+  if (!resendBtn) return;
+
+  clearInterval(resendTimerInterval);
+  let seconds = 30;
+  resendBtn.disabled = true;
+  resendBtn.textContent = `Resend in (${seconds}s)`;
+
+  resendTimerInterval = setInterval(() => {
+    seconds--;
+    if (seconds <= 0) {
+      clearInterval(resendTimerInterval);
+      resendBtn.disabled = false;
+      resendBtn.textContent = 'Resend Code';
+    } else {
+      resendBtn.textContent = `Resend in (${seconds}s)`;
+    }
+  }, 1000);
 }
 
 function showError(box, msg) {
