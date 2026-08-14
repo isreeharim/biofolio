@@ -52,77 +52,48 @@ async function initAdminAuth() {
   $('#adminAuthScreen').style.display = 'flex';
   $('#adminShell').style.display = 'none';
 
-  let adminOtpMode = false;
   let adminPendingEmail = '';
 
-  const loginForm = $('#adminLoginForm');
+  const emailForm = $('#adminEmailForm');
   const otpVerifyForm = $('#adminOtpVerifyForm');
-  const toggleBtn = $('#adminToggleOtpBtn');
   const authSub = $('#adminAuthSub');
-  const passField = $('#adminPasswordField');
-  const submitBtn = $('#adminLoginBtn');
+  const sendBtn = $('#adminSendOtpBtn');
+  const changeEmailBtn = $('#adminChangeEmailBtn');
 
-  toggleBtn?.addEventListener('click', () => {
-    adminOtpMode = !adminOtpMode;
-    toggleBtn.textContent = adminOtpMode ? 'Use Password Sign In 🔑' : 'Use Email OTP Code ✉';
-    passField.style.display = adminOtpMode ? 'none' : 'flex';
-    submitBtn.innerHTML = adminOtpMode ? '<span>Send Admin OTP Code</span> <span class="arrow">→</span>' : '<span>Authenticate Admin</span> <span class="arrow">→</span>';
-    authSub.textContent = adminOtpMode ? 'Enter your admin email to receive a 6-digit verification code.' : 'Sign in with an authorized administrator account.';
-    $('#adminAuthError').classList.remove('show');
-    $('#adminOtpError').classList.remove('show');
-  });
-
-  loginForm?.addEventListener('submit', async (e) => {
+  emailForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = $('#adminEmail').value.trim();
-    const password = $('#adminPassword').value;
     const errorBox = $('#adminAuthError');
-
     errorBox.classList.remove('show');
 
-    if (adminOtpMode) {
-      // Send OTP code to admin email
-      try {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span>Sending magic code...</span>';
-        await window.BiofolioSupabase.sendEmailOtp({ email });
-        
-        adminPendingEmail = email;
-        loginForm.style.display = 'none';
-        otpVerifyForm.style.display = 'flex';
-        authSub.textContent = `Enter the 6-digit code sent to ${email}`;
-        
-        const firstDigit = $('.admin-otp-digit', otpVerifyForm);
-        if (firstDigit) firstDigit.focus();
-      } catch (err) {
-        errorBox.textContent = err.message || 'Failed to send admin OTP.';
-        errorBox.classList.add('show');
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span>Send Admin OTP Code</span> <span class="arrow">→</span>';
-      }
-      return;
-    }
-
-    // Password login
     try {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span>Verifying credentials...</span>';
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<span>Sending admin code...</span>';
 
-      await signInUser({ email, password });
-      const profile = await getCurrentProfile();
-
-      if (profile && profile.role === 'admin') {
-        grantAdminAccess(profile);
-      } else {
-        throw new Error('Access denied. This account does not have administrator privileges.');
-      }
+      await window.BiofolioSupabase.sendEmailOtp({ email });
+      
+      adminPendingEmail = email;
+      emailForm.style.display = 'none';
+      otpVerifyForm.style.display = 'flex';
+      changeEmailBtn.style.display = 'inline-block';
+      authSub.textContent = `Enter the 6-digit code sent to ${email}`;
+      
+      const firstDigit = $('.admin-otp-digit', otpVerifyForm);
+      if (firstDigit) firstDigit.focus();
     } catch (err) {
-      errorBox.textContent = err.message || 'Authentication failed.';
+      errorBox.textContent = err.message || 'Failed to send admin verification code.';
       errorBox.classList.add('show');
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span>Authenticate Admin</span> <span class="arrow">→</span>';
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<span>Send 6-Digit Admin Code</span> <span class="arrow">→</span>';
     }
+  });
+
+  changeEmailBtn?.addEventListener('click', () => {
+    otpVerifyForm.style.display = 'none';
+    emailForm.style.display = 'flex';
+    changeEmailBtn.style.display = 'none';
+    authSub.textContent = 'Sign in with an authorized administrator account.';
   });
 
   // Admin OTP digit auto-navigation
@@ -161,7 +132,7 @@ async function initAdminAuth() {
 
     try {
       otpBtn.disabled = true;
-      otpBtn.innerHTML = '<span>Verifying OTP...</span>';
+      otpBtn.innerHTML = '<span>Verifying code...</span>';
       await window.BiofolioSupabase.verifyEmailOtp({ email: adminPendingEmail, token });
       const profile = await getCurrentProfile();
       if (profile && profile.role === 'admin') {
@@ -170,10 +141,10 @@ async function initAdminAuth() {
         throw new Error('Access denied. This account is not an administrator.');
       }
     } catch (err) {
-      errorBox.textContent = err.message || 'Invalid verification code.';
+      errorBox.textContent = err.message || 'Invalid or expired verification code.';
       errorBox.classList.add('show');
       otpBtn.disabled = false;
-      otpBtn.innerHTML = '<span>Verify OTP &amp; Enter Portal</span> <span class="arrow">→</span>';
+      otpBtn.innerHTML = '<span>Verify &amp; Enter Portal</span> <span class="arrow">→</span>';
     }
   }
 

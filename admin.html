@@ -27,26 +27,21 @@
           <p class="auth-sub" id="adminAuthSub">Sign in with an authorized administrator account.</p>
         </div>
 
-        <!-- Password Mode -->
-        <form id="adminLoginForm" class="auth-form">
+        <!-- Step 1: Email Request Form -->
+        <form id="adminEmailForm" class="auth-form">
           <div class="auth-field">
             <label for="adminEmail">Admin Email</label>
-            <input type="email" id="adminEmail" required placeholder="isreeharim@gmail.com" />
-          </div>
-
-          <div class="auth-field" id="adminPasswordField">
-            <label for="adminPassword">Password</label>
-            <input type="password" id="adminPassword" required placeholder="••••••••" />
+            <input type="email" id="adminEmail" required placeholder="isreeharim@gmail.com" value="isreeharim@gmail.com" />
           </div>
 
           <div class="auth-error-box" id="adminAuthError"></div>
 
-          <button type="submit" class="btn-primary auth-submit-btn" id="adminLoginBtn" style="background:#1f2937;">
-            <span>Authenticate Admin</span> <span class="arrow">→</span>
+          <button type="submit" class="btn-primary auth-submit-btn" id="adminSendOtpBtn" style="background:#1f2937;">
+            <span>Send 6-Digit Admin Code</span> <span class="arrow">→</span>
           </button>
         </form>
 
-        <!-- OTP Verify Mode (Hidden by default) -->
+        <!-- Step 2: 6-Digit Verification Code Form (Hidden by default) -->
         <form id="adminOtpVerifyForm" class="auth-form" style="display:none;">
           <div class="otp-boxes-group" style="justify-content:center;margin:12px 0;">
             <input type="text" class="otp-digit admin-otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" autofocus />
@@ -60,13 +55,13 @@
           <div class="auth-error-box" id="adminOtpError"></div>
 
           <button type="submit" class="btn-primary auth-submit-btn" id="adminOtpVerifyBtn" style="background:#1f2937;">
-            <span>Verify OTP &amp; Enter Portal</span> <span class="arrow">→</span>
+            <span>Verify &amp; Enter Portal</span> <span class="arrow">→</span>
           </button>
         </form>
 
         <div class="auth-modal-footer" style="display:flex;justify-content:space-between;align-items:center;">
           <a href="index.html" class="text-link">← Public Site</a>
-          <button type="button" class="text-link" id="adminToggleOtpBtn">Use Email OTP Code ✉</button>
+          <button type="button" class="text-link" id="adminChangeEmailBtn" style="display:none;">Change Email</button>
         </div>
       </div>
     </div>
