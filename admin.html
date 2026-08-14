@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Biofolio Admin — Control &amp; Moderation Center</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+    
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="extras.css" />
+    <link rel="stylesheet" href="admin.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body class="admin-body">
+    
+    <!-- Gated Admin Auth Screen (Shown if not logged in as Admin) -->
+    <div class="admin-auth-screen" id="adminAuthScreen">
+      <div class="auth-modal-card admin-auth-card">
+        <div class="auth-modal-header">
+          <span class="auth-mark" style="font-size:2rem;">🛡️</span>
+          <p class="eyebrow">RESTRICTED ACCESS</p>
+          <h2>Biofolio Admin Portal</h2>
+          <p class="auth-sub">Sign in with an authorized administrator account.</p>
+        </div>
+
+        <form id="adminLoginForm" class="auth-form">
+          <div class="auth-field">
+            <label for="adminEmail">Admin Email</label>
+            <input type="email" id="adminEmail" required placeholder="admin@biofolio.site" />
+          </div>
+
+          <div class="auth-field">
+            <label for="adminPassword">Password</label>
+            <input type="password" id="adminPassword" required placeholder="••••••••" />
+          </div>
+
+          <div class="auth-error-box" id="adminAuthError"></div>
+
+          <button type="submit" class="btn-primary auth-submit-btn" id="adminLoginBtn" style="background:#1f2937;">
+            <span>Authenticate Admin</span> <span class="arrow">→</span>
+          </button>
+        </form>
+
+        <div class="auth-modal-footer">
+          <a href="index.html" class="text-link">← Return to Public Site</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Admin Dashboard Shell -->
+    <div class="admin-shell" id="adminShell" style="display:none;">
+      <!-- Admin Sidebar -->
+      <aside class="admin-sidebar">
+        <div class="admin-brand">
+          <a class="brand" href="admin.html">
+            <span class="brand-mark" style="background:#dc2626;">B</span>
+            <span class="brand-name">biofolio <em>admin</em></span>
+          </a>
+          <span class="admin-badge">SYSTEM V1</span>
+        </div>
+
+        <nav class="admin-nav" aria-label="Admin Navigation">
+          <button class="admin-nav-item active" data-tab="overview">
+            <span class="a-icon">📊</span> Overview
+          </button>
+          <button class="admin-nav-item" data-tab="users">
+            <span class="a-icon">👥</span> Users
+          </button>
+          <button class="admin-nav-item" data-tab="portfolios">
+            <span class="a-icon">🌐</span> Portfolios
+          </button>
+          <button class="admin-nav-item" data-tab="reports">
+            <span class="a-icon">🚩</span> Moderation
+            <span class="pending-count-badge" id="sidebarReportBadge">0</span>
+          </button>
+        </nav>
+
+        <div class="admin-sidebar-footer">
+          <div class="admin-user-info">
+            <span class="admin-avatar">🛡️</span>
+            <div>
+              <strong id="adminProfileName">Administrator</strong>
+              <span id="adminProfileEmail">admin@biofolio.site</span>
+            </div>
+          </div>
+          <button class="admin-logout-btn" id="adminLogoutBtn">Sign Out ⎋</button>
+        </div>
+      </aside>
+
+      <!-- Admin Main Workspace -->
+      <main class="admin-main">
+        <header class="admin-topbar">
+          <div class="admin-topbar-left">
+            <h1 id="currentTabHeading">System Overview</h1>
+            <p id="currentTabSub">Live metrics, user growth, and content health.</p>
+          </div>
+          <div class="admin-topbar-actions">
+            <a href="index.html" class="btn-ghost" target="_blank">View Site ↗</a>
+            <button class="btn-refresh" id="refreshDataBtn">↻ Refresh Data</button>
+          </div>
+        </header>
+
+        <!-- 1. OVERVIEW TAB -->
+        <section class="admin-tab-pane active" id="tab-overview">
+          <!-- Stats Grid -->
+          <div class="admin-stats-grid">
+            <div class="a-stat-card">
+              <div class="stat-icon-wrap" style="background:#e0e7ff;color:#4338ca;">👥</div>
+              <div>
+                <p class="stat-title">TOTAL USERS</p>
+                <h3 class="stat-value" id="statTotalUsers">0</h3>
+                <span class="stat-sub">Registered accounts</span>
+              </div>
+            </div>
+
+            <div class="a-stat-card">
+              <div class="stat-icon-wrap" style="background:#dcfce7;color:#15803d;">🌐</div>
+              <div>
+                <p class="stat-title">ACTIVE PORTFOLIOS</p>
+                <h3 class="stat-value" id="statTotalPortfolios">0</h3>
+                <span class="stat-sub">Published to web</span>
+              </div>
+            </div>
+
+            <div class="a-stat-card">
+              <div class="stat-icon-wrap" style="background:#ede9fe;color:#6d28d9;">👁️</div>
+              <div>
+                <p class="stat-title">PAGE VIEWS</p>
+                <h3 class="stat-value" id="statTotalViews">0</h3>
+                <span class="stat-sub">Logged analytics views</span>
+              </div>
+            </div>
+
+            <div class="a-stat-card">
+              <div class="stat-icon-wrap" style="background:#fee2e2;color:#b91c1c;">🚩</div>
+              <div>
+                <p class="stat-title">PENDING REPORTS</p>
+                <h3 class="stat-value" id="statPendingReports">0</h3>
+                <span class="stat-sub">Needs moderation</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Overview Cards -->
+          <div class="admin-overview-layout">
+            <div class="a-panel">
+              <div class="panel-head">
+                <h3>Recent User Registrations</h3>
+                <button class="text-link" id="viewAllUsersBtn">View all</button>
+              </div>
+              <div class="a-table-wrap">
+                <table class="a-table" id="recentUsersTable">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Handle</th>
+                      <th>Role</th>
+                      <th>Joined</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="4" class="text-center muted">Loading recent users...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="a-panel">
+              <div class="panel-head">
+                <h3>Moderation Action Queue</h3>
+                <button class="text-link" id="viewAllReportsBtn">View all</button>
+              </div>
+              <div id="overviewReportsList" class="reports-feed">
+                <p class="empty-msg">No pending content flags. Everything is clean!</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. USERS TAB -->
+        <section class="admin-tab-pane" id="tab-users">
+          <div class="table-filter-bar">
+            <div class="search-wrap">
+              <span>🔍</span>
+              <input type="text" id="userSearchInput" placeholder="Search by name, handle, or email..." />
+            </div>
+            <div class="filter-actions">
+              <select id="userRoleFilter">
+                <option value="all">All Roles</option>
+                <option value="user">Users</option>
+                <option value="admin">Admins</option>
+              </select>
+              <select id="userStatusFilter">
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="a-panel">
+            <div class="a-table-wrap">
+              <table class="a-table" id="usersTable">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Username / Slug</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th style="text-align:right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                  <tr><td colspan="6" class="text-center muted">Loading users...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. PORTFOLIOS TAB -->
+        <section class="admin-tab-pane" id="tab-portfolios">
+          <div class="table-filter-bar">
+            <div class="search-wrap">
+              <span>🔍</span>
+              <input type="text" id="portfolioSearchInput" placeholder="Search by slug or title..." />
+            </div>
+            <div class="filter-actions">
+              <select id="portfolioStatusFilter">
+                <option value="all">All Status</option>
+                <option value="published">Published</option>
+                <option value="draft">Draft / Unpublished</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="a-panel">
+            <div class="a-table-wrap">
+              <table class="a-table" id="portfoliosTable">
+                <thead>
+                  <tr>
+                    <th>Portfolio URL</th>
+                    <th>Creator</th>
+                    <th>Theme</th>
+                    <th>Sections</th>
+                    <th>Status</th>
+                    <th style="text-align:right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="portfoliosTableBody">
+                  <tr><td colspan="6" class="text-center muted">Loading portfolios...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. MODERATION / REPORTS TAB -->
+        <section class="admin-tab-pane" id="tab-reports">
+          <div class="a-panel">
+            <div class="panel-head">
+              <h3>Content Moderation Queue</h3>
+              <select id="reportStatusFilter" style="padding:6px 12px;border:1px solid #e4ded8;border-radius:6px;">
+                <option value="all">All Reports</option>
+                <option value="pending" selected>Pending Review</option>
+                <option value="actioned">Actioned</option>
+                <option value="dismissed">Dismissed</option>
+              </select>
+            </div>
+            <div class="a-table-wrap">
+              <table class="a-table" id="reportsTable">
+                <thead>
+                  <tr>
+                    <th>Reported Portfolio</th>
+                    <th>Reason &amp; Notes</th>
+                    <th>Reporter</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th style="text-align:right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="reportsTableBody">
+                  <tr><td colspan="6" class="text-center muted">Loading reports...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- ================= DESTRUCTIVE CONFIRMATION MODAL ================= -->
+    <div class="modal-backdrop" id="destructiveModal">
+      <div class="auth-modal-card destructive-card">
+        <button type="button" class="modal-close" id="destructiveClose">×</button>
+        <div class="auth-modal-header">
+          <span class="auth-mark" style="color:#dc2626;font-size:2rem;">⚠️</span>
+          <p class="eyebrow" style="color:#dc2626;">DANGEROUS ACTION</p>
+          <h2 id="destructiveTitle">Confirm Deletion</h2>
+          <p class="auth-sub" id="destructiveDesc" style="color:#b91c1c;font-weight:500;">
+            This will permanently remove the user’s account and associated data.
+          </p>
+        </div>
+
+        <div class="destructive-prompt-box">
+          <p>To confirm, type <strong id="destructiveMatchTarget">delete</strong> below:</p>
+          <input type="text" id="destructiveInput" placeholder="Type here to confirm" autocomplete="off" spellcheck="false" />
+        </div>
+
+        <div class="destructive-actions">
+          <button type="button" class="btn-ghost" id="cancelDestructiveBtn">Cancel</button>
+          <button type="button" class="btn-primary" id="confirmDestructiveBtn" style="background:#dc2626;" disabled>
+            Permanently Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast">Admin notification</div>
+
+    <script type="module" src="supabase.js"></script>
+    <script type="module" src="admin.js"></script>
+  </body>
+</html>

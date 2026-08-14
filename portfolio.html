@@ -1,2 +1,95 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Amelia Parker — Biofolio</title><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" /><link rel="stylesheet" href="styles.css" /></head><body class="public-page"><main class="public-portfolio theme-cream font-serif button-soft" id="publicPortfolio"><a class="public-brand" href="index.html"><b>B</b> biofolio</a><section class="public-content"><div class="preview-avatar" id="publicInitials">AP</div><h1 id="publicName">Amelia Parker</h1><p class="public-role" id="publicRole">Product designer &amp; illustrator</p><p class="public-bio" id="publicBio">Designing thoughtful digital experiences with a soft spot for bold ideas, good type, and a perfectly brewed flat white.</p><div class="public-links" id="publicLinks"></div></section><footer>Made with <b>biofolio</b></footer></main><script src="portfolio.js"></script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Biofolio Profile</title>
+    <meta name="description" content="Personal portfolio and links powered by Biofolio." />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+    
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="extras.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body class="public-page">
+    <main class="public-portfolio theme-cream font-serif button-soft" id="publicPortfolio">
+      <header class="public-top-bar">
+        <a class="public-brand" href="index.html"><b>B</b> biofolio</a>
+        <button class="public-share-btn" id="shareProfileBtn" title="Share this portfolio">Share ↗</button>
+      </header>
+
+      <section class="public-content">
+        <!-- Profile Header -->
+        <div class="preview-avatar" id="publicInitials">AP</div>
+        <h1 id="publicName">Amelia Parker</h1>
+        <p class="public-role" id="publicRole">Product designer &amp; illustrator</p>
+        <p class="public-bio" id="publicBio">Designing thoughtful digital experiences with a soft spot for bold ideas, good type, and a perfectly brewed flat white.</p>
+        
+        <!-- Modular Sections Container (Links & Projects) -->
+        <div class="public-sections" id="publicSections">
+          <div class="public-links" id="publicLinks"></div>
+        </div>
+      </section>
+
+      <footer class="public-footer">
+        <div class="footer-cta">
+          Made with <a href="index.html"><b>biofolio</b></a> · Create your free page
+        </div>
+        <div class="footer-actions">
+          <button class="report-link" id="reportContentBtn">Report content</button>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Report Content Modal -->
+    <div class="modal-backdrop" id="reportModal">
+      <div class="auth-modal-card">
+        <button type="button" class="modal-close" id="reportClose">×</button>
+        <div class="auth-modal-header">
+          <span class="auth-mark" style="color:#ef4444;">⚑</span>
+          <p class="eyebrow">MODERATION</p>
+          <h2>Report this portfolio</h2>
+          <p class="auth-sub">Help us keep Biofolio safe. Please describe the issue.</p>
+        </div>
+
+        <form id="reportForm" class="auth-form">
+          <div class="auth-field">
+            <label for="reportReason">Reason for Report</label>
+            <select id="reportReason" required style="padding:10px;border:1px solid #e8e3d8;border-radius:8px;font-family:inherit;">
+              <option value="spam">Spam or misleading links</option>
+              <option value="impersonation">Impersonation or copyright infringement</option>
+              <option value="inappropriate">Inappropriate or harmful content</option>
+              <option value="other">Other issue</option>
+            </select>
+          </div>
+
+          <div class="auth-field">
+            <label for="reportEmail">Your Email (optional)</label>
+            <input type="email" id="reportEmail" placeholder="your@email.com" />
+          </div>
+
+          <div class="auth-field">
+            <label for="reportNotes">Additional Details</label>
+            <textarea id="reportNotes" rows="3" placeholder="Provide any relevant details or context" style="padding:10px;border:1px solid #e8e3d8;border-radius:8px;font-family:inherit;"></textarea>
+          </div>
+
+          <div class="auth-error-box" id="reportError"></div>
+          <div class="auth-success-box" id="reportSuccess"></div>
+
+          <button type="submit" class="btn-primary auth-submit-btn" id="reportSubmitBtn" style="background:#dc2626;">
+            Submit Report
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="toast" id="toast">Link copied to clipboard</div>
+
+    <script type="module" src="supabase.js"></script>
+    <script type="module" src="portfolio.js"></script>
+  </body>
+</html>

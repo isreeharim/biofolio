@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Biofolio Studio — Visual Builder &amp; Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="extras.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html"><span class="brand-mark">B</span><span>biofolio</span></a>
+        <nav class="main-nav" aria-label="Main navigation">
+          <button class="nav-item active" data-page="builder"><span class="nav-icon">✦</span> Build</button>
+          <button class="nav-item" data-page="analytics"><span class="nav-icon">◔</span> Analytics</button>
+          <button class="nav-item" data-page="settings"><span class="nav-icon">⚙</span> Settings</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="profile-mini" id="sidebarProfile">
+            <div class="avatar mini" id="sidebarAvatar">AP</div>
+            <div><strong id="sidebarName">Amelia Parker</strong><span id="sidebarUsername">amelia.parker</span></div>
+            <button class="more" id="userMenuBtn">•••</button>
+          </div>
+          <button class="help" id="signOutBtn"><span>⎋</span> Sign out</button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="mobile-brand"><span class="brand-mark">B</span> biofolio</div>
+          <div class="site-status"><span class="pulse"></span><span id="topbarDomain">amelia.biofolio.site</span><button class="external" id="openLiveBtn" title="Open site">↗</button></div>
+          <div class="top-actions">
+            <a href="index.html" class="btn-ghost" style="text-decoration:none;font-size:0.85rem;">Home</a>
+            <button class="preview-btn" id="previewButton">Preview</button>
+            <button class="publish-btn" id="publishButton">Publish <span>↗</span></button>
+          </div>
+        </header>
+
+        <section class="page builder-page active-page" id="builder">
+          <div class="builder-heading">
+            <div>
+              <p class="eyebrow">YOUR PORTFOLIO</p>
+              <h1>Make it <em>yours.</em></h1>
+              <p class="subcopy">A little corner of the internet, entirely yours.</p>
+            </div>
+            <div class="save-state" id="saveStateIndicator"><span class="check">✓</span> All changes saved</div>
+          </div>
+
+          <div class="builder-layout">
+            <section class="edit-panel">
+              <div class="panel-tabs">
+                <button class="editor-tab active" data-tab="content">Content</button>
+                <button class="editor-tab" data-tab="design">Design</button>
+              </div>
+
+              <!-- Content Tab -->
+              <div class="content-tab tab-content active" id="content-tab">
+                <div class="section-heading">
+                  <h2>About you</h2>
+                  <button class="small-link profile-edit-trigger">Edit profile</button>
+                </div>
+                <div class="profile-card">
+                  <div class="avatar large avatar-upload-wrap" id="profileInitials" title="Click to upload photo">
+                    AP
+                    <div class="avatar-hover-overlay">📷</div>
+                  </div>
+                  <input type="file" id="avatarFileInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display:none;" />
+                  <div>
+                    <h3 id="profileName">Amelia Parker</h3>
+                    <p id="profileRole">Product designer &amp; illustrator</p>
+                    <button type="button" class="photo-action-btn" id="changePhotoBtn">Change photo</button>
+                    <button type="button" class="photo-action-btn remove" id="removePhotoBtn" style="display:none;">Remove</button>
+                  </div>
+                  <button class="edit-circle profile-edit-trigger" aria-label="Edit profile">✎</button>
+                </div>
+
+                <div class="field">
+                  <label for="bio">Short bio</label>
+                  <textarea id="bio" rows="3">Designing thoughtful digital experiences with a soft spot for bold ideas, good type, and a perfectly brewed flat white.</textarea>
+                  <span class="count">132 / 160</span>
+                </div>
+
+                <div class="section-heading links-head">
+                  <div>
+                    <h2>Your links</h2>
+                    <p>Drag to reorder</p>
+                  </div>
+                  <button class="add-link" id="addLink">+ Add link</button>
+                </div>
+
+                <div class="links-list" id="linksList">
+                  <article class="link-item" draggable="true">
+                    <span class="grip">⠿</span>
+                    <span class="link-glyph purple">◫</span>
+                    <div><strong>My work</strong><small>amelia.biofolio.site/work</small></div>
+                    <button class="item-more">•••</button>
+                  </article>
+                  <article class="link-item" draggable="true">
+                    <span class="grip">⠿</span>
+                    <span class="link-glyph orange">◎</span>
+                    <div><strong>Instagram</strong><small>instagram.com/amelia</small></div>
+                    <button class="item-more">•••</button>
+                  </article>
+                  <article class="link-item" draggable="true">
+                    <span class="grip">⠿</span>
+                    <span class="link-glyph blue">in</span>
+                    <div><strong>LinkedIn</strong><small>linkedin.com/in/ameliaparker</small></div>
+                    <button class="item-more">•••</button>
+                  </article>
+                </div>
+
+                <!-- Featured Projects Section -->
+                <div class="section-heading projects-head">
+                  <div>
+                    <h2>Featured Projects</h2>
+                    <p>Showcase case studies &amp; work</p>
+                  </div>
+                  <button class="add-link" id="addProjectBtn">+ Add project</button>
+                </div>
+
+                <div class="projects-list" id="projectsList">
+                  <!-- Project cards dynamically injected here -->
+                </div>
+              </div>
+
+              <!-- Design Tab -->
+              <div class="design-tab tab-content" id="design-tab">
+                <div class="section-heading">
+                  <h2>Look &amp; feel</h2>
+                  <button class="small-link">Reset</button>
+                </div>
+                <p class="design-intro">Pick a mood for your personal space.</p>
+                
+                <label class="design-label">COLOR THEME</label>
+                <div class="theme-grid">
+                  <button class="theme-card selected" data-theme="cream"><span class="theme-preview cream-preview"></span><strong>Warm cream</strong></button>
+                  <button class="theme-card" data-theme="lavender"><span class="theme-preview lavender-preview"></span><strong>Soft lilac</strong></button>
+                  <button class="theme-card" data-theme="ink"><span class="theme-preview ink-preview"></span><strong>Midnight ink</strong></button>
+                  <button class="theme-card" data-theme="mint"><span class="theme-preview mint-preview"></span><strong>Fresh mint</strong></button>
+                </div>
+
+                <label class="design-label">TYPE STYLE</label>
+                <div class="font-choices">
+                  <button class="font-choice selected" data-font="serif"><span class="font-sample serif">Aa</span><span>Editorial</span><i>✓</i></button>
+                  <button class="font-choice" data-font="sans"><span class="font-sample sans">Aa</span><span>Modern</span><i>✓</i></button>
+                </div>
+
+                <label class="design-label">BUTTON STYLE</label>
+                <div class="button-styles">
+                  <button class="button-style selected" data-button="soft"><span></span>Soft</button>
+                  <button class="button-style" data-button="sharp"><span></span>Sharp</button>
+                  <button class="button-style" data-button="outline"><span></span>Outline</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- Live Phone Preview Frame -->
+            <section class="preview-area">
+              <div class="preview-caption">
+                <span>LIVE PREVIEW</span>
+                <div class="view-toggle">
+                  <button class="view-option active">▯</button>
+                  <button class="view-option">▤</button>
+                </div>
+              </div>
+              <div class="phone-wrap">
+                <div class="phone">
+                  <div class="speaker"></div>
+                  <div class="phone-screen theme-cream font-serif button-soft" id="phoneScreen">
+                    <div class="preview-top">
+                      <span class="preview-brand"><b>B</b> biofolio</span>
+                      <button>•••</button>
+                    </div>
+                    <div class="portfolio-preview">
+                      <div class="preview-avatar" id="previewInitials">AP</div>
+                      <h2 id="previewName">Amelia Parker</h2>
+                      <p class="preview-role" id="previewRole">Product designer &amp; illustrator</p>
+                      <p class="preview-bio" id="previewBio">Designing thoughtful digital experiences with a soft spot for bold ideas, good type, and a perfectly brewed flat white.</p>
+                      
+                      <!-- Live Links Preview -->
+                      <div class="preview-links" id="previewLinks">
+                        <a href="#"><span>◫</span> My work <b>↗</b></a>
+                        <a href="#"><span>◎</span> Instagram <b>↗</b></a>
+                        <a href="#"><span>in</span> LinkedIn <b>↗</b></a>
+                      </div>
+
+                      <!-- Live Projects Preview -->
+                      <div class="preview-projects" id="previewProjects"></div>
+                    </div>
+                    <div class="preview-footer">Made with <b>biofolio</b></div>
+                  </div>
+                </div>
+                <div class="phone-shadow"></div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- Analytics Page -->
+        <section class="page analytics-page" id="analytics">
+          <div class="builder-heading">
+            <div>
+              <p class="eyebrow">YOUR REACH</p>
+              <h1>See what’s <em>clicking.</em></h1>
+              <p class="subcopy">A simple view of how your portfolio is performing.</p>
+            </div>
+            <button class="date-button">Last 30 days ⌄</button>
+          </div>
+          <div class="metric-grid">
+            <div class="metric-card">
+              <p>PAGE VIEWS</p>
+              <strong id="analyticsViews">1,284</strong>
+              <span class="up">↗ 18.4%</span>
+              <small>vs. previous 30 days</small>
+            </div>
+            <div class="metric-card">
+              <p>LINK CLICKS</p>
+              <strong id="analyticsClicks">376</strong>
+              <span class="up">↗ 12.8%</span>
+              <small>vs. previous 30 days</small>
+            </div>
+            <div class="metric-card">
+              <p>CLICK RATE</p>
+              <strong id="analyticsCtr">29.3%</strong>
+              <span class="down">↘ 2.1%</span>
+              <small>vs. previous 30 days</small>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div>
+              <h2>Profile views</h2>
+              <p>August 2026</p>
+            </div>
+            <div class="chart">
+              <div class="y-labels"><span>80</span><span>60</span><span>40</span><span>20</span><span>0</span></div>
+              <svg viewBox="0 0 800 210" preserveAspectRatio="none" aria-label="Profile views line graph">
+                <defs>
+                  <linearGradient id="area" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stop-color="#7868d6" stop-opacity=".25"/>
+                    <stop offset="100%" stop-color="#7868d6" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M0,175 C45,170 55,150 90,156 S145,125 180,138 S220,125 260,115 S310,135 340,104 S390,80 430,96 S465,62 500,72 S545,38 590,54 S645,68 680,38 S740,56 800,20 L800,210 L0,210 Z" fill="url(#area)"/>
+                <path d="M0,175 C45,170 55,150 90,156 S145,125 180,138 S220,125 260,115 S310,135 340,104 S390,80 430,96 S465,62 500,72 S545,38 590,54 S645,68 680,38 S740,56 800,20" fill="none" stroke="#6e5dcd" stroke-width="4" stroke-linecap="round"/>
+              </svg>
+              <div class="x-labels"><span>Aug 1</span><span>Aug 7</span><span>Aug 14</span><span>Aug 21</span><span>Aug 28</span></div>
+            </div>
+          </div>
+          <div class="analytics-bottom">
+            <div class="chart-card top-links">
+              <div>
+                <h2>Top links</h2>
+                <p>Your most popular destinations</p>
+              </div>
+              <div class="rank"><b>1</b><span>My work</span><strong>182</strong></div>
+              <div class="rank"><b>2</b><span>Instagram</span><strong>124</strong></div>
+              <div class="rank"><b>3</b><span>LinkedIn</span><strong>70</strong></div>
+            </div>
+            <div class="share-card">
+              <span class="share-icon">↗</span>
+              <h2>Ready to share?</h2>
+              <p>Your portfolio is live and looking great.</p>
+              <button id="analyticsCopyBtn">Copy your link</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings Page -->
+        <section class="page settings-page" id="settings">
+          <div class="builder-heading">
+            <div>
+              <p class="eyebrow">ACCOUNT</p>
+              <h1>Keep it <em>yours.</em></h1>
+              <p class="subcopy">Manage your profile and portfolio settings.</p>
+            </div>
+          </div>
+          <div class="settings-card">
+            <h2>Portfolio address</h2>
+            <p>Choose a simple address to share everywhere.</p>
+            <div class="address-input">
+              <span>biofolio.site/</span>
+              <input id="settingsSlugInput" value="amelia" aria-label="Portfolio address" />
+              <button id="saveSlugBtn">Save</button>
+            </div>
+          </div>
+          <div class="settings-card">
+            <h2>Social sharing</h2>
+            <p>Control how your portfolio appears when you share it.</p>
+            <div class="share-row">
+              <div>
+                <strong>Profile visibility</strong>
+                <span>Your portfolio is visible to everyone.</span>
+              </div>
+              <button class="toggle on" id="visibilityToggle" aria-label="Profile visibility"><i></i></button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Publish Modal -->
+    <div class="modal-backdrop" id="modal">
+      <div class="publish-modal">
+        <button class="modal-close" id="modalClose">×</button>
+        <span class="publish-star">✦</span>
+        <p class="eyebrow">LOOKING GOOD</p>
+        <h2>Your portfolio is live!</h2>
+        <p>Share your new corner of the internet with the world.</p>
+        <div class="share-url">
+          <span id="modalShareUrl">biofolio.site/amelia</span>
+          <button id="copyButton">Copy</button>
+        </div>
+        <a class="view-live" id="viewLiveLink" href="portfolio.html" target="_blank">View live portfolio <span>↗</span></a>
+        <button class="modal-done" id="doneButton">Done, let’s go!</button>
+      </div>
+    </div>
+
+    <!-- Profile/Link Editor Modal -->
+    <div class="modal-backdrop" id="editorModal">
+      <form class="editor-modal" id="editorForm">
+        <button type="button" class="modal-close" id="editorClose">×</button>
+        <p class="eyebrow" id="editorEyebrow">YOUR PROFILE</p>
+        <h2 id="editorTitle">Edit your profile</h2>
+        <div class="modal-fields" id="modalFields"></div>
+        <button class="modal-done" type="submit" id="editorSubmit">Save changes</button>
+      </form>
+    </div>
+
+    <!-- Project Editor Modal -->
+    <div class="modal-backdrop" id="projectModal">
+      <form class="editor-modal" id="projectForm" style="width:480px;">
+        <button type="button" class="modal-close" id="projectClose">×</button>
+        <p class="eyebrow" id="projectEyebrow">FEATURED WORK</p>
+        <h2 id="projectModalTitle">Add New Project</h2>
+        
+        <div class="modal-fields">
+          <input type="hidden" id="projIdInput" name="project_id" />
+          
+          <div class="modal-field">
+            <label for="projTitle">Project Title *</label>
+            <input type="text" id="projTitle" name="title" required placeholder="e.g. Acme Brand Redesign" />
+          </div>
+
+          <div class="modal-field">
+            <label for="projSubtitle">Role / Subtitle</label>
+            <input type="text" id="projSubtitle" name="subtitle" placeholder="e.g. Lead Product Designer · 2026" />
+          </div>
+
+          <div class="modal-field">
+            <label for="projDesc">Description / Impact</label>
+            <textarea id="projDesc" name="description" rows="3" placeholder="Brief summary of what you built, the problem solved, or outcomes achieved..."></textarea>
+          </div>
+
+          <div class="modal-field">
+            <label for="projUrl">Live Link or Case Study URL</label>
+            <input type="url" id="projUrl" name="url" placeholder="https://example.com/project" />
+          </div>
+
+          <div class="modal-field">
+            <label for="projTags">Tags (comma-separated)</label>
+            <input type="text" id="projTags" name="tags" placeholder="e.g. Web, Design System, Next.js" />
+          </div>
+
+          <!-- Project Thumbnail Upload Field -->
+          <div class="modal-field">
+            <label>Project Thumbnail / Cover Image</label>
+            <input type="hidden" id="projImageUrl" name="image_url" />
+            <input type="file" id="projImageFileInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display:none;" />
+            
+            <div class="project-upload-zone" id="projUploadZone">
+              <div class="project-upload-preview" id="projUploadPreview" style="display:none;">
+                <img id="projPreviewImg" src="" alt="Project thumbnail preview" />
+                <button type="button" class="btn-remove-thumb" id="removeProjThumbBtn">×</button>
+              </div>
+              <div class="project-upload-placeholder" id="projUploadPlaceholder">
+                <span class="upload-icon">🖼️</span>
+                <span>Click to upload image thumbnail (PNG, JPG, WebP)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="modal-done" type="submit" id="projSubmitBtn">Save Project</button>
+      </form>
+    </div>
+
+    <div class="toast" id="toast">Link copied to clipboard</div>
+
+    <script type="module" src="supabase.js"></script>
+    <script type="module" src="builder.js"></script>
+  </body>
+</html>
