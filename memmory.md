@@ -46,6 +46,9 @@ Biofolio is a free, no-code personal website builder. Its V1 loop is:
 - **Role**: `admin`
 - **Username**: `isreehari`
 
+## Developer Workflow & Rules
+- **Continuous Git Sync**: Always stage, commit with descriptive messages, and push all modifications to GitHub `origin/agent/biofolio-v1` automatically after any code edits or feature additions.
+
 ## Run Locally
 ```powershell
 python -m http.server 4173 --bind 127.0.0.1
@@ -54,4 +57,5 @@ python -m http.server 4173 --bind 127.0.0.1
 - Studio Builder: `http://127.0.0.1:4173/builder.html`
 - Public Profile: `http://127.0.0.1:4173/portfolio.html?u=isreehari`
 - Admin Portal: `http://127.0.0.1:4173/admin.html`
+
 
