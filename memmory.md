@@ -32,13 +32,26 @@ Biofolio is a free, no-code personal website builder. Its V1 loop is:
 - `supabase.js` — Supabase client initialization, Auth, Portfolio CRUD, Analytics, Storage, and Admin APIs.
 - `styles.css` / `extras.css` — Responsive design tokens, typography, themes, and public-page styling.
 
-## Run Locally
+## Deployment & Live URLs
 
+- **Production Domain**: `https://biofolio.sreeharim.site/`
+  - Landing Page: `https://biofolio.sreeharim.site/`
+  - Creator Studio: `https://biofolio.sreeharim.site/builder.html`
+  - Admin Portal: `https://biofolio.sreeharim.site/admin.html`
+  - Public Profiles: `https://biofolio.sreeharim.site/portfolio.html?u=:username`
+    - e.g. `https://biofolio.sreeharim.site/portfolio.html?u=isreehari`
+
+## Admin Credentials
+- **Email**: `isreeharim@gmail.com`
+- **Role**: `admin`
+- **Username**: `isreehari`
+
+## Run Locally
 ```powershell
 python -m http.server 4173 --bind 127.0.0.1
 ```
 - Landing Page: `http://127.0.0.1:4173/index.html`
 - Studio Builder: `http://127.0.0.1:4173/builder.html`
-- Public Profile: `http://127.0.0.1:4173/portfolio.html?u=amelia`
+- Public Profile: `http://127.0.0.1:4173/portfolio.html?u=isreehari`
 - Admin Portal: `http://127.0.0.1:4173/admin.html`
 
