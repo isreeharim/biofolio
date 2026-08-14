@@ -1,10 +1,15 @@
-// Biofolio Landing Page - 100% Passwordless Email OTP Authentication
+// Biofolio Landing Page Controller
+// Sign Up: 100% Email OTP Verification
+// Sign In: Fast Email & Password
 import { 
   checkUsernameAvailability, 
   sendEmailOtp,
   verifyEmailOtp,
+  signInUser,
+  resetPasswordForEmail,
   getCurrentUser, 
-  getCurrentProfile 
+  getCurrentProfile,
+  supabaseClient
 } from './supabase.js';
 
 // DOM Selectors
@@ -13,15 +18,19 @@ const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)]
 
 // State
 let checkTimeout = null;
-let currentAuthMode = 'signup'; // 'signup' | 'login'
-let pendingEmail = '';
+let pendingSignup = {
+  name: '',
+  username: '',
+  email: '',
+  password: ''
+};
 let resendTimerInterval = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   initSessionCheck();
   initHeroHandleChecker();
   initHeroThemeSwitcher();
-  initOtpAuthSystem();
+  initAuthModals();
 });
 
 // 1. Session Check & Header State
@@ -120,7 +129,7 @@ function initHeroHandleChecker() {
   claimForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const cleanVal = handleInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    openOtpModal('signup', cleanVal);
+    openSignupModal(cleanVal);
   });
 }
 
@@ -142,47 +151,132 @@ function initHeroThemeSwitcher() {
   });
 }
 
-// 4. 100% Passwordless Email OTP Authentication System
-function initOtpAuthSystem() {
-  const modal = $('#otpAuthModal');
-  const closeBtn = $('#otpClose');
-  const toggleModeBtn = $('#otpToggleModeBtn');
-  const changeEmailBtn = $('#otpChangeEmailBtn');
-  const resendBtn = $('#otpResendBtn');
-
+// 4. Modal Management & Form Submissions
+function initAuthModals() {
   // Nav buttons
-  $('#loginNavBtn')?.addEventListener('click', () => openOtpModal('login'));
-  $('#signupNavBtn')?.addEventListener('click', () => openOtpModal('signup'));
+  $('#loginNavBtn')?.addEventListener('click', openLoginModal);
+  $('#signupNavBtn')?.addEventListener('click', () => openSignupModal());
   $('#bottomCtaBtn')?.addEventListener('click', () => {
     const heroInput = $('#heroHandleInput');
     const handle = heroInput ? heroInput.value.trim() : '';
-    openOtpModal('signup', handle);
+    openSignupModal(handle);
   });
 
-  // Close modal
-  closeBtn?.addEventListener('click', () => modal.classList.remove('show'));
-  modal?.addEventListener('click', (e) => {
-    if (e.target === modal) modal.classList.remove('show');
+  // Switchers between modals
+  $('#switchToLogin')?.addEventListener('click', () => {
+    closeModal('signupModal');
+    openLoginModal();
   });
 
-  // Toggle Signup / Login Mode
-  toggleModeBtn?.addEventListener('click', () => {
-    openOtpModal(currentAuthMode === 'signup' ? 'login' : 'signup');
+  $('#switchToSignup')?.addEventListener('click', () => {
+    closeModal('loginModal');
+    openSignupModal();
   });
 
-  // Change email in verify step
-  changeEmailBtn?.addEventListener('click', () => {
-    $('#otpStepVerify').style.display = 'none';
-    $('#otpStepRequest').style.display = 'block';
+  $('#forgotPasswordBtn')?.addEventListener('click', () => {
+    closeModal('loginModal');
+    openModal('forgotModal');
   });
 
-  // Resend OTP code
-  resendBtn?.addEventListener('click', async () => {
-    if (resendBtn.disabled || !pendingEmail) return;
+  $('#forgotBackToLogin')?.addEventListener('click', () => {
+    closeModal('forgotModal');
+    openLoginModal();
+  });
+
+  // Close buttons
+  $$('.modal-close').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const modal = e.target.closest('.modal-backdrop');
+      if (modal) modal.classList.remove('show');
+    });
+  });
+
+  $$('.modal-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) backdrop.classList.remove('show');
+    });
+  });
+
+  // ================= SIGN UP FLOW (OTP) =================
+  const signupReqForm = $('#signupRequestForm');
+  signupReqForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorBox = $('#signupRequestError');
+    const submitBtn = $('#signupRequestBtn');
+    errorBox.classList.remove('show');
+
+    const name = $('#suDisplayName').value.trim();
+    const rawUsername = $('#suUsername').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const email = $('#suEmail').value.trim();
+    const password = $('#suPassword').value;
+
+    if (rawUsername.length < 3) {
+      showError(errorBox, 'Username must be at least 3 characters.');
+      return;
+    }
+
+    if (password.length < 6) {
+      showError(errorBox, 'Password must be at least 6 characters.');
+      return;
+    }
+
+    try {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Verifying handle...</span>';
+
+      // 1. Check availability
+      const check = await checkUsernameAvailability(rawUsername);
+      if (!check.available) {
+        throw new Error(check.error || 'Username is already taken. Please pick another.');
+      }
+
+      submitBtn.innerHTML = '<span>Sending 6-digit OTP...</span>';
+
+      // 2. Send Email OTP
+      await sendEmailOtp({
+        email,
+        username: rawUsername,
+        displayName: name
+      });
+
+      // Save pending signup data
+      pendingSignup = { name, username: rawUsername, email, password };
+      $('#suTargetEmail').textContent = email;
+
+      // Switch to Step 2 (Verify OTP)
+      $('#suStepRequest').style.display = 'none';
+      $('#suStepVerify').style.display = 'block';
+      clearOtpDigits();
+      startResendCountdown();
+
+      const firstDigit = $('.su-otp-digit', $('#signupVerifyForm'));
+      if (firstDigit) firstDigit.focus();
+
+      showToast(`Verification code sent to ${email}`);
+    } catch (err) {
+      showError(errorBox, err.message || 'Could not send verification code.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span>Send 6-Digit OTP Code</span> <span class="arrow">→</span>';
+    }
+  });
+
+  $('#suChangeEmailBtn')?.addEventListener('click', () => {
+    $('#suStepVerify').style.display = 'none';
+    $('#suStepRequest').style.display = 'block';
+  });
+
+  $('#suResendBtn')?.addEventListener('click', async () => {
+    const resendBtn = $('#suResendBtn');
+    if (resendBtn.disabled || !pendingSignup.email) return;
     try {
       resendBtn.disabled = true;
       resendBtn.textContent = 'Sending...';
-      await sendEmailOtp({ email: pendingEmail });
+      await sendEmailOtp({
+        email: pendingSignup.email,
+        username: pendingSignup.username,
+        displayName: pendingSignup.name
+      });
       showToast('A new 6-digit code has been sent!');
       startResendCountdown();
     } catch (err) {
@@ -192,138 +286,95 @@ function initOtpAuthSystem() {
     }
   });
 
-  // STEP 1: Request OTP Form
-  const requestForm = $('#otpRequestForm');
-  requestForm?.addEventListener('submit', async (e) => {
+  // OTP Digit Navigation & Submit
+  initOtpDigitInputs();
+
+  const signupVerifyForm = $('#signupVerifyForm');
+  signupVerifyForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const errorBox = $('#otpRequestError');
-    const submitBtn = $('#otpRequestSubmitBtn');
+    await handleSignupOtpVerification();
+  });
+
+  // ================= SIGN IN FLOW (PASSWORD) =================
+  const loginForm = $('#loginForm');
+  loginForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorBox = $('#loginError');
+    const submitBtn = $('#loginSubmitBtn');
     errorBox.classList.remove('show');
 
-    const email = $('#otpEmail').value.trim();
-    const name = $('#otpName').value.trim();
-    const rawUsername = $('#otpUsername').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-
-    if (!email) return;
-
-    if (currentAuthMode === 'signup' && rawUsername) {
-      if (rawUsername.length < 3) {
-        showError(errorBox, 'Username must be at least 3 characters.');
-        return;
-      }
-
-      // Check handle availability
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span>Checking handle...</span>';
-      try {
-        const check = await checkUsernameAvailability(rawUsername);
-        if (!check.available) {
-          throw new Error(check.error || 'Username is already taken. Please pick another.');
-        }
-      } catch (err) {
-        showError(errorBox, err.message);
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span>Send 6-Digit Code</span> <span class="arrow">→</span>';
-        return;
-      }
-    }
+    const email = $('#liEmail').value.trim();
+    const password = $('#liPassword').value;
 
     try {
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span>Sending magic code...</span>';
+      submitBtn.innerHTML = '<span>Signing in...</span>';
 
-      await sendEmailOtp({
-        email,
-        username: currentAuthMode === 'signup' ? rawUsername : undefined,
-        displayName: currentAuthMode === 'signup' ? name : undefined
-      });
+      await signInUser({ email, password });
+      showToast('Signed in successfully! Redirecting...');
 
-      pendingEmail = email;
-      $('#otpTargetEmail').textContent = email;
-
-      // Switch to Step 2
-      $('#otpStepRequest').style.display = 'none';
-      $('#otpStepVerify').style.display = 'block';
-      clearOtpDigits();
-      startResendCountdown();
-
-      // Focus first box
-      const firstDigit = $('.otp-digit', $('#otpVerifyForm'));
-      if (firstDigit) firstDigit.focus();
-
-      showToast(`6-digit code sent to ${email}`);
+      setTimeout(() => {
+        window.location.href = 'builder.html';
+      }, 600);
     } catch (err) {
-      showError(errorBox, err.message || 'Could not send verification code. Please check your email.');
-    } finally {
+      showError(errorBox, err.message || 'Invalid email or password.');
       submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span>Send 6-Digit Code</span> <span class="arrow">→</span>';
+      submitBtn.innerHTML = '<span>Sign In to Studio</span> <span class="arrow">→</span>';
     }
   });
 
-  // STEP 2: OTP Digit Inputs & Form Submit
-  initOtpDigitInputs();
-
-  const verifyForm = $('#otpVerifyForm');
-  verifyForm?.addEventListener('submit', async (e) => {
+  // ================= FORGOT PASSWORD =================
+  const forgotForm = $('#forgotForm');
+  forgotForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    await handleOtpVerification();
+    const errorBox = $('#forgotError');
+    const successBox = $('#forgotSuccess');
+    const submitBtn = $('#forgotSubmitBtn');
+    errorBox.classList.remove('show');
+    successBox.classList.remove('show');
+
+    const email = $('#fpEmail').value.trim();
+
+    try {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Sending link...</span>';
+
+      await resetPasswordForEmail(email);
+      successBox.textContent = `Password reset link sent to ${email}. Check your inbox!`;
+      successBox.classList.add('show');
+    } catch (err) {
+      showError(errorBox, err.message || 'Failed to send password reset link.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span>Send Reset Link</span> <span class="arrow">→</span>';
+    }
   });
 }
 
-function openOtpModal(mode = 'signup', prefilledHandle = '') {
-  currentAuthMode = mode;
-  const modal = $('#otpAuthModal');
-  const eyebrow = $('#otpModalEyebrow');
-  const title = $('#otpModalTitle');
-  const sub = $('#otpModalSub');
-  const nameField = $('#otpNameField');
-  const usernameField = $('#otpUsernameField');
-  const togglePrompt = $('#otpTogglePrompt');
-  const toggleBtn = $('#otpToggleModeBtn');
-  const usernameInput = $('#otpUsername');
-  const submitBtn = $('#otpRequestSubmitBtn');
-
-  // Reset to Step 1
-  $('#otpStepRequest').style.display = 'block';
-  $('#otpStepVerify').style.display = 'none';
-  $('#otpRequestError').classList.remove('show');
-  $('#otpVerifyError').classList.remove('show');
-
-  if (mode === 'signup') {
-    eyebrow.textContent = 'CREATE ACCOUNT';
-    title.textContent = 'Start your Biofolio';
-    sub.textContent = 'Enter your email to receive a secure 6-digit login code. No passwords required.';
-    nameField.style.display = 'flex';
-    usernameField.style.display = 'flex';
-    togglePrompt.textContent = 'Already have an account?';
-    toggleBtn.textContent = 'Sign In with OTP';
-    submitBtn.innerHTML = '<span>Send 6-Digit Code</span> <span class="arrow">→</span>';
-
-    if (prefilledHandle) {
-      usernameInput.value = prefilledHandle;
-    }
-  } else {
-    eyebrow.textContent = 'WELCOME BACK';
-    title.textContent = 'Sign In to Biofolio';
-    sub.textContent = 'Enter your email and we’ll send you a 6-digit magic code to access your studio.';
-    nameField.style.display = 'none';
-    usernameField.style.display = 'none';
-    togglePrompt.textContent = 'Don’t have an account?';
-    toggleBtn.textContent = 'Create one free';
-    submitBtn.innerHTML = '<span>Send 6-Digit Code</span> <span class="arrow">→</span>';
+function openSignupModal(prefilledHandle = '') {
+  $('#suStepRequest').style.display = 'block';
+  $('#suStepVerify').style.display = 'none';
+  $('#signupRequestError').classList.remove('show');
+  $('#signupVerifyError').classList.remove('show');
+  
+  if (prefilledHandle) {
+    $('#suUsername').value = prefilledHandle;
   }
+  openModal('signupModal');
+  $('#suDisplayName')?.focus();
+}
 
-  modal.classList.add('show');
-  const firstInput = mode === 'signup' ? ($('#otpName') || $('#otpEmail')) : $('#otpEmail');
-  if (firstInput) firstInput.focus();
+function openLoginModal() {
+  $('#loginError').classList.remove('show');
+  openModal('loginModal');
+  $('#liEmail')?.focus();
 }
 
 function initOtpDigitInputs() {
-  const digits = $$('.otp-digit');
+  const digits = $$('.su-otp-digit');
   
   digits.forEach((input, idx) => {
-    // Input handling
-    input.addEventListener('input', (e) => {
+    input.addEventListener('input', () => {
       const val = input.value.replace(/[^0-9]/g, '');
       input.value = val ? val[0] : '';
       input.classList.toggle('filled', !!input.value);
@@ -332,21 +383,18 @@ function initOtpDigitInputs() {
         digits[idx + 1].focus();
       }
 
-      // If all filled, auto-submit
       const fullCode = digits.map(d => d.value).join('');
       if (fullCode.length === 6) {
-        handleOtpVerification();
+        handleSignupOtpVerification();
       }
     });
 
-    // Keydown (Backspace navigation)
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Backspace' && !input.value && idx > 0) {
         digits[idx - 1].focus();
       }
     });
 
-    // Paste handling (paste entire 6-digit code)
     input.addEventListener('paste', (e) => {
       e.preventDefault();
       const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
@@ -364,24 +412,24 @@ function initOtpDigitInputs() {
         digits[chars.length].focus();
       } else {
         digits[5].focus();
-        handleOtpVerification();
+        handleSignupOtpVerification();
       }
     });
   });
 }
 
 function clearOtpDigits() {
-  $$('.otp-digit').forEach(d => {
+  $$('.su-otp-digit').forEach(d => {
     d.value = '';
     d.classList.remove('filled');
   });
 }
 
-async function handleOtpVerification() {
-  const digits = $$('.otp-digit');
+async function handleSignupOtpVerification() {
+  const digits = $$('.su-otp-digit');
   const token = digits.map(d => d.value).join('');
-  const errorBox = $('#otpVerifyError');
-  const submitBtn = $('#otpVerifySubmitBtn');
+  const errorBox = $('#signupVerifyError');
+  const submitBtn = $('#signupVerifyBtn');
   errorBox.classList.remove('show');
 
   if (token.length < 6) {
@@ -391,14 +439,26 @@ async function handleOtpVerification() {
 
   try {
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span>Verifying code...</span>';
+    submitBtn.innerHTML = '<span>Verifying &amp; setting up...</span>';
 
+    // 1. Verify OTP code
     await verifyEmailOtp({
-      email: pendingEmail,
+      email: pendingSignup.email,
       token: token
     });
 
-    showToast('Authenticated! Launching your Creator Studio...');
+    // 2. Set password for future email+password sign-in
+    if (pendingSignup.password && supabaseClient) {
+      try {
+        await supabaseClient.auth.updateUser({
+          password: pendingSignup.password
+        });
+      } catch (pwErr) {
+        console.warn('Password update note:', pwErr);
+      }
+    }
+
+    showToast('Portfolio created! Launching your Creator Studio...');
     
     setTimeout(() => {
       window.location.href = 'builder.html';
@@ -411,7 +471,7 @@ async function handleOtpVerification() {
 }
 
 function startResendCountdown() {
-  const resendBtn = $('#otpResendBtn');
+  const resendBtn = $('#suResendBtn');
   if (!resendBtn) return;
 
   clearInterval(resendTimerInterval);
@@ -429,6 +489,16 @@ function startResendCountdown() {
       resendBtn.textContent = `Resend in (${seconds}s)`;
     }
   }, 1000);
+}
+
+function openModal(id) {
+  const modal = $(`#${id}`);
+  if (modal) modal.classList.add('show');
+}
+
+function closeModal(id) {
+  const modal = $(`#${id}`);
+  if (modal) modal.classList.remove('show');
 }
 
 function showError(box, msg) {

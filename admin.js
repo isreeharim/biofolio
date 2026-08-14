@@ -52,48 +52,77 @@ async function initAdminAuth() {
   $('#adminAuthScreen').style.display = 'flex';
   $('#adminShell').style.display = 'none';
 
+  let adminOtpMode = false;
   let adminPendingEmail = '';
 
-  const emailForm = $('#adminEmailForm');
+  const loginForm = $('#adminLoginForm');
   const otpVerifyForm = $('#adminOtpVerifyForm');
+  const toggleBtn = $('#adminToggleOtpBtn');
   const authSub = $('#adminAuthSub');
-  const sendBtn = $('#adminSendOtpBtn');
-  const changeEmailBtn = $('#adminChangeEmailBtn');
+  const passField = $('#adminPasswordField');
+  const submitBtn = $('#adminLoginBtn');
 
-  emailForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = $('#adminEmail').value.trim();
-    const errorBox = $('#adminAuthError');
-    errorBox.classList.remove('show');
-
-    try {
-      sendBtn.disabled = true;
-      sendBtn.innerHTML = '<span>Sending admin code...</span>';
-
-      await window.BiofolioSupabase.sendEmailOtp({ email });
-      
-      adminPendingEmail = email;
-      emailForm.style.display = 'none';
-      otpVerifyForm.style.display = 'flex';
-      changeEmailBtn.style.display = 'inline-block';
-      authSub.textContent = `Enter the 6-digit code sent to ${email}`;
-      
-      const firstDigit = $('.admin-otp-digit', otpVerifyForm);
-      if (firstDigit) firstDigit.focus();
-    } catch (err) {
-      errorBox.textContent = err.message || 'Failed to send admin verification code.';
-      errorBox.classList.add('show');
-    } finally {
-      sendBtn.disabled = false;
-      sendBtn.innerHTML = '<span>Send 6-Digit Admin Code</span> <span class="arrow">→</span>';
-    }
+  toggleBtn?.addEventListener('click', () => {
+    adminOtpMode = !adminOtpMode;
+    toggleBtn.textContent = adminOtpMode ? 'Sign in with Password 🔑' : 'Sign in with Email OTP ✉';
+    passField.style.display = adminOtpMode ? 'none' : 'flex';
+    submitBtn.innerHTML = adminOtpMode ? '<span>Send Admin OTP Code</span> <span class="arrow">→</span>' : '<span>Sign In to Admin Portal</span> <span class="arrow">→</span>';
+    authSub.textContent = adminOtpMode ? 'Enter your admin email to receive a 6-digit verification code.' : 'Sign in with an authorized administrator account.';
+    $('#adminAuthError').classList.remove('show');
+    $('#adminOtpError').classList.remove('show');
   });
 
-  changeEmailBtn?.addEventListener('click', () => {
-    otpVerifyForm.style.display = 'none';
-    emailForm.style.display = 'flex';
-    changeEmailBtn.style.display = 'none';
-    authSub.textContent = 'Sign in with an authorized administrator account.';
+  loginForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('#adminEmail').value.trim();
+    const password = $('#adminPassword').value;
+    const errorBox = $('#adminAuthError');
+
+    errorBox.classList.remove('show');
+
+    if (adminOtpMode) {
+      // Send OTP code to admin email
+      try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Sending magic code...</span>';
+        await window.BiofolioSupabase.sendEmailOtp({ email });
+        
+        adminPendingEmail = email;
+        loginForm.style.display = 'none';
+        otpVerifyForm.style.display = 'flex';
+        authSub.textContent = `Enter the 6-digit code sent to ${email}`;
+        
+        const firstDigit = $('.admin-otp-digit', otpVerifyForm);
+        if (firstDigit) firstDigit.focus();
+      } catch (err) {
+        errorBox.textContent = err.message || 'Failed to send admin OTP.';
+        errorBox.classList.add('show');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Send Admin OTP Code</span> <span class="arrow">→</span>';
+      }
+      return;
+    }
+
+    // Password login
+    try {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Verifying credentials...</span>';
+
+      await signInUser({ email, password });
+      const profile = await getCurrentProfile();
+
+      if (profile && profile.role === 'admin') {
+        grantAdminAccess(profile);
+      } else {
+        throw new Error('Access denied. This account does not have administrator privileges.');
+      }
+    } catch (err) {
+      errorBox.textContent = err.message || 'Authentication failed.';
+      errorBox.classList.add('show');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span>Sign In to Admin Portal</span> <span class="arrow">→</span>';
+    }
   });
 
   // Admin OTP digit auto-navigation
