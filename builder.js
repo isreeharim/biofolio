@@ -1,10 +1,11 @@
-// Biofolio Studio Builder Controller
+// Biofolio Studio Builder Controller - Fully Connected
 import { 
   getCurrentUser, 
   getCurrentProfile, 
   getUserPortfolio, 
   signOutUser,
   uploadMedia,
+  checkUsernameAvailability,
   logAnalyticsEvent
 } from './supabase.js';
 
@@ -16,6 +17,7 @@ let currentProfile = null;
 let currentPortfolio = null;
 let saveDebounceTimer = null;
 let currentAvatarUrl = null;
+let editingLinkId = null;
 
 // Projects state
 let projects = [
@@ -39,6 +41,13 @@ let projects = [
   }
 ];
 
+// Links state
+let links = [
+  { id: 'link-1', title: 'Selected Case Studies', url: 'https://example.com/work', icon: '◫' },
+  { id: 'link-2', title: 'Design Work on Instagram', url: 'https://instagram.com/amelia', icon: '◎' },
+  { id: 'link-3', title: 'Connect on LinkedIn', url: 'https://linkedin.com/in/ameliaparker', icon: 'in' }
+];
+
 // Local fallback state if working offline / without auth
 const defaultProfile = {
   name: 'Amelia Parker',
@@ -48,11 +57,7 @@ const defaultProfile = {
   font: 'serif',
   button: 'soft',
   avatar_url: '',
-  links: [
-    { id: 'link-1', title: 'Selected Case Studies', url: 'https://example.com/work', icon: '◫' },
-    { id: 'link-2', title: 'Design Work on Instagram', url: 'https://instagram.com/amelia', icon: '◎' },
-    { id: 'link-3', title: 'Connect on LinkedIn', url: 'https://linkedin.com/in/ameliaparker', icon: 'in' }
-  ]
+  is_published: true
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -64,7 +69,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupDraggableLinks();
   setupProjectsManagement();
   setupAvatarUpload();
-  setupProfileModal();
+  setupProfileAndLinkModal();
+  setupSettingsTab();
   setupPublishModal();
   setupSignOut();
 });
@@ -82,6 +88,7 @@ async function initStudio() {
         $('#sidebarUsername').textContent = `@${currentProfile.username}`;
         $('#topbarDomain').textContent = `${currentProfile.username}.biofolio.site`;
         $('#modalShareUrl').textContent = `biofolio.site/${currentProfile.username}`;
+        $('#settingsSlugInput').value = currentProfile.username;
         
         currentAvatarUrl = currentProfile.avatar_url || '';
         renderAvatar(currentProfile.display_name, currentAvatarUrl);
@@ -108,11 +115,23 @@ async function initStudio() {
         const themeConfig = currentPortfolio.theme || {};
         applyTheme(themeConfig.palette || 'cream', themeConfig.font || 'serif', themeConfig.button || 'soft');
         
+        // Visibility toggle state
+        const visToggle = $('#visibilityToggle');
+        if (visToggle) {
+          visToggle.classList.toggle('on', currentPortfolio.is_published);
+        }
+
         // Render links from portfolio sections
         const linkSection = currentPortfolio.sections?.find(s => s.section_type === 'links');
         if (linkSection && linkSection.items?.length > 0) {
-          renderLinksList(linkSection.items);
+          links = linkSection.items.map(it => ({
+            id: it.id,
+            title: it.title,
+            url: it.url || '#',
+            icon: it.icon || '↗'
+          }));
         }
+        renderLinksList();
 
         // Render projects from portfolio sections
         const projectSection = currentPortfolio.sections?.find(s => s.section_type === 'projects');
@@ -128,6 +147,9 @@ async function initStudio() {
           }));
         }
         renderProjectsList();
+
+        // Load live analytics metrics from Supabase
+        await loadAnalyticsData(currentPortfolio.id);
       }
     } else {
       // Offline / Demo Mode with LocalStorage
@@ -177,6 +199,11 @@ function loadLocalState() {
   
   applyTheme(local.theme || 'cream', local.font || 'serif', local.button || 'soft');
 
+  if (local.links && local.links.length > 0) {
+    links = local.links;
+  }
+  renderLinksList();
+
   if (local.projects && local.projects.length > 0) {
     projects = local.projects;
   }
@@ -193,11 +220,15 @@ function applyTheme(palette, font, button) {
   $$('.button-style').forEach(c => c.classList.toggle('selected', c.dataset.button === button));
 }
 
-// 1. Navigation
+// 1. Navigation & Tab Switching
 function setupNavigation() {
   $$('.nav-item').forEach(button => button.addEventListener('click', () => {
     $$('.nav-item').forEach(item => item.classList.toggle('active', item === button));
     $$('.page').forEach(page => page.classList.toggle('active-page', page.id === button.dataset.page));
+
+    if (button.dataset.page === 'analytics' && currentPortfolio) {
+      loadAnalyticsData(currentPortfolio.id);
+    }
   }));
 }
 
@@ -256,18 +287,20 @@ function setupThemeCustomizers() {
   }));
 }
 
-// 5. Draggable Links List
+// 5. Draggable Links List & Actions
 function setupDraggableLinks() {
   const linksList = $('#linksList');
   if (!linksList) return;
-
-  $$('.link-item', linksList).forEach(enableDrag);
 
   linksList.addEventListener('dragover', event => {
     event.preventDefault();
     const items = $$('.link-item:not(.dragging)', linksList);
     const next = items.find(item => event.clientY <= item.getBoundingClientRect().top + item.offsetHeight / 2);
     linksList.insertBefore(window.__draggedItem, next || null);
+
+    // Reorder state array
+    const newOrderIds = $$('.link-item', linksList).map(el => el.dataset.id);
+    links.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
     syncPreviewLinks();
     triggerAutoSave();
   });
@@ -284,31 +317,90 @@ function enableDrag(item) {
 }
 
 function syncPreviewLinks() {
-  const linksList = $('#linksList');
   const previewLinks = $('#previewLinks');
-  if (!linksList || !previewLinks) return;
+  if (!previewLinks) return;
 
-  previewLinks.innerHTML = $$('.link-item', linksList).map(item => {
-    const icon = $('.link-glyph', item)?.textContent || '↗';
-    const title = $('strong', item)?.textContent || 'Link';
-    return `<a href="#"><span>${icon}</span> ${title} <b>↗</b></a>`;
-  }).join('');
+  if (links.length === 0) {
+    previewLinks.innerHTML = '<p style="font-size:11px;opacity:0.6;">No links added yet</p>';
+    return;
+  }
+
+  previewLinks.innerHTML = links.map(item => `
+    <a href="${escapeHtml(item.url || '#')}" target="_blank">
+      <span>${item.icon || '↗'}</span>
+      ${escapeHtml(item.title)}
+      <b>↗</b>
+    </a>
+  `).join('');
 }
 
-function renderLinksList(items) {
+function renderLinksList() {
   const linksList = $('#linksList');
   if (!linksList) return;
-  linksList.innerHTML = items.map((item, idx) => `
+
+  if (links.length === 0) {
+    linksList.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:#918c95;border:1px dashed #e4dfda;border-radius:8px;">No links added yet. Click <strong>+ Add link</strong>.</div>';
+    syncPreviewLinks();
+    return;
+  }
+
+  linksList.innerHTML = links.map((item, idx) => `
     <article class="link-item" draggable="true" data-id="${item.id}">
       <span class="grip">⠿</span>
       <span class="link-glyph ${idx % 3 === 0 ? 'purple' : idx % 3 === 1 ? 'orange' : 'blue'}">${item.icon || '↗'}</span>
-      <div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.url || 'Destination')}</small></div>
-      <button class="item-more">•••</button>
+      <div style="flex:1;min-width:0;">
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.url || 'Destination')}</small>
+      </div>
+      <div class="project-actions-btns">
+        <button type="button" class="btn-icon-action" data-action="edit-link" data-id="${item.id}" title="Edit link">✎</button>
+        <button type="button" class="btn-icon-action delete" data-action="delete-link" data-id="${item.id}" title="Delete link">🗑</button>
+      </div>
     </article>
   `).join('');
   
   $$('.link-item', linksList).forEach(enableDrag);
+
+  // Attach link action listeners
+  $$('[data-action="edit-link"]', linksList).forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const link = links.find(l => l.id === btn.dataset.id);
+      if (link) openLinkEditor(link);
+    });
+  });
+
+  $$('[data-action="delete-link"]', linksList).forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      links = links.filter(l => l.id !== btn.dataset.id);
+      renderLinksList();
+      triggerAutoSave();
+      showToast('Link removed');
+    });
+  });
+
   syncPreviewLinks();
+}
+
+function openLinkEditor(link = null) {
+  editingLinkId = link ? link.id : null;
+  const modal = $('#editorModal');
+  const form = $('#editorForm');
+  const fields = $('#modalFields');
+
+  form.dataset.mode = 'link';
+  $('#editorEyebrow').textContent = link ? 'EDIT DESTINATION' : 'NEW DESTINATION';
+  $('#editorTitle').textContent = link ? 'Edit link' : 'Add a link';
+  $('#editorSubmit').textContent = link ? 'Save changes' : 'Add link';
+
+  fields.innerHTML = `
+    <div class="modal-field"><label>Link title</label><input required name="title" value="${escapeHtml(link?.title || '')}" placeholder="e.g. My portfolio case study"></div>
+    <div class="modal-field"><label>URL</label><input required name="url" type="url" value="${escapeHtml(link?.url || '')}" placeholder="https://"></div>
+    <div class="modal-field"><label>Icon Symbol</label><input name="icon" maxlength="3" value="${escapeHtml(link?.icon || '↗')}" placeholder="◫, ◎, in, ↗"></div>
+  `;
+
+  modal.classList.add('show');
 }
 
 // 6. Direct Avatar Image Upload System
@@ -341,7 +433,6 @@ function setupAvatarUpload() {
         const publicUrl = await uploadMedia(file, 'avatars');
         currentAvatarUrl = publicUrl;
       } else {
-        // Local base64 data preview fallback
         const reader = new FileReader();
         reader.onload = (re) => {
           currentAvatarUrl = re.target.result;
@@ -643,45 +734,40 @@ function syncPreviewProjects() {
 }
 
 // 8. Profile & Link Editor Modal
-function setupProfileModal() {
+function setupProfileAndLinkModal() {
   const editorModal = $('#editorModal');
   const editorForm = $('#editorForm');
   const fields = $('#modalFields');
 
-  function openEditor(mode) {
-    editorForm.dataset.mode = mode;
-    const isProfile = mode === 'profile';
-    $('#editorEyebrow').textContent = isProfile ? 'YOUR PROFILE' : 'NEW DESTINATION';
-    $('#editorTitle').textContent = isProfile ? 'Edit your profile' : 'Add a link';
-    $('#editorSubmit').textContent = isProfile ? 'Save changes' : 'Add link';
+  function openProfileEditor() {
+    editorForm.dataset.mode = 'profile';
+    $('#editorEyebrow').textContent = 'YOUR PROFILE';
+    $('#editorTitle').textContent = 'Edit your profile';
+    $('#editorSubmit').textContent = 'Save changes';
 
-    if (isProfile) {
-      const curName = $('#profileName').textContent;
-      const curRole = $('#profileRole').textContent;
-      const curBio = $('#bio').value;
-      fields.innerHTML = `
-        <div class="modal-field"><label>Name</label><input required name="name" value="${escapeHtml(curName)}"></div>
-        <div class="modal-field"><label>What you do</label><input required name="role" value="${escapeHtml(curRole)}"></div>
-        <div class="modal-field"><label>Short bio</label><textarea required name="bio" maxlength="160">${escapeHtml(curBio)}</textarea></div>
-      `;
-    } else {
-      fields.innerHTML = `
-        <div class="modal-field"><label>Link title</label><input required name="title" placeholder="e.g. My portfolio case study"></div>
-        <div class="modal-field"><label>URL</label><input required name="url" type="url" placeholder="https://"></div>
-      `;
-    }
+    const curName = $('#profileName').textContent;
+    const curRole = $('#profileRole').textContent;
+    const curBio = $('#bio').value;
+
+    fields.innerHTML = `
+      <div class="modal-field"><label>Name</label><input required name="name" value="${escapeHtml(curName)}"></div>
+      <div class="modal-field"><label>What you do</label><input required name="role" value="${escapeHtml(curRole)}"></div>
+      <div class="modal-field"><label>Short bio</label><textarea required name="bio" maxlength="160">${escapeHtml(curBio)}</textarea></div>
+    `;
+
     editorModal.classList.add('show');
   }
 
   function closeEditor() {
     editorModal.classList.remove('show');
+    editingLinkId = null;
   }
 
-  $$('.profile-edit-trigger').forEach(b => b.addEventListener('click', () => openEditor('profile')));
+  $$('.profile-edit-trigger').forEach(b => b.addEventListener('click', openProfileEditor));
   
   $('#addLink')?.addEventListener('click', (e) => {
     e.stopImmediatePropagation();
-    openEditor('link');
+    openLinkEditor(null);
   });
 
   $('#editorClose')?.addEventListener('click', closeEditor);
@@ -709,13 +795,24 @@ function setupProfileModal() {
     } else {
       const title = data.get('title').trim();
       const url = data.get('url').trim();
-      const link = document.createElement('article');
-      link.className = 'link-item';
-      link.draggable = true;
-      link.innerHTML = `<span class="grip">⠿</span><span class="link-glyph purple">↗</span><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(url)}</small></div><button class="item-more">•••</button>`;
-      $('#linksList')?.append(link);
-      enableDrag(link);
-      syncPreviewLinks();
+      const icon = data.get('icon')?.trim() || '↗';
+
+      if (editingLinkId) {
+        const item = links.find(l => l.id === editingLinkId);
+        if (item) {
+          item.title = title;
+          item.url = url;
+          item.icon = icon;
+        }
+      } else {
+        links.push({
+          id: `link-${Date.now()}`,
+          title,
+          url,
+          icon
+        });
+      }
+      renderLinksList();
     }
 
     closeEditor();
@@ -724,7 +821,134 @@ function setupProfileModal() {
   });
 }
 
-// 9. Publishing & Sharing Modal
+// 9. Settings Tab (Slug change & Visibility Toggle)
+function setupSettingsTab() {
+  const saveSlugBtn = $('#saveSlugBtn');
+  const slugInput = $('#settingsSlugInput');
+  const visToggle = $('#visibilityToggle');
+
+  saveSlugBtn?.addEventListener('click', async () => {
+    const rawVal = slugInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    if (rawVal.length < 3) {
+      showToast('Username must be at least 3 characters');
+      return;
+    }
+
+    saveSlugBtn.disabled = true;
+    saveSlugBtn.textContent = 'Saving...';
+
+    try {
+      if (currentUser && window.BiofolioSupabase?.client) {
+        // If changing username, check availability
+        if (!currentProfile || currentProfile.username !== rawVal) {
+          const check = await checkUsernameAvailability(rawVal);
+          if (!check.available) {
+            throw new Error(check.error || 'Username is taken');
+          }
+        }
+
+        const client = window.BiofolioSupabase.client;
+        await client.from('profiles').update({ username: rawVal }).eq('id', currentUser.id);
+        if (currentPortfolio) {
+          await client.from('portfolios').update({ slug: rawVal }).eq('id', currentPortfolio.id);
+        }
+
+        if (currentProfile) currentProfile.username = rawVal;
+        if (currentPortfolio) currentPortfolio.slug = rawVal;
+      }
+
+      $('#topbarDomain').textContent = `${rawVal}.biofolio.site`;
+      $('#sidebarUsername').textContent = `@${rawVal}`;
+      $('#modalShareUrl').textContent = `biofolio.site/${rawVal}`;
+      $('#viewLiveLink').href = `portfolio.html?u=${rawVal}`;
+
+      showToast(`Portfolio address updated to /${rawVal}!`);
+    } catch (err) {
+      showToast(`Could not update address: ${err.message}`);
+    } finally {
+      saveSlugBtn.disabled = false;
+      saveSlugBtn.textContent = 'Save';
+    }
+  });
+
+  visToggle?.addEventListener('click', async () => {
+    const isCurrentlyOn = visToggle.classList.contains('on');
+    const newState = !isCurrentlyOn;
+
+    visToggle.classList.toggle('on', newState);
+
+    if (currentPortfolio && window.BiofolioSupabase?.client) {
+      try {
+        await window.BiofolioSupabase.client
+          .from('portfolios')
+          .update({ is_published: newState, updated_at: new Date().toISOString() })
+          .eq('id', currentPortfolio.id);
+        
+        currentPortfolio.is_published = newState;
+        showToast(newState ? 'Portfolio is now Public!' : 'Portfolio set to Private (Unpublished).');
+      } catch (err) {
+        showToast('Failed to update visibility.');
+      }
+    } else {
+      showToast(newState ? 'Portfolio is now Public!' : 'Portfolio set to Private.');
+    }
+  });
+}
+
+// 10. Live Analytics Aggregation
+async function loadAnalyticsData(portfolioId) {
+  if (!window.BiofolioSupabase?.client || !portfolioId) return;
+
+  try {
+    const client = window.BiofolioSupabase.client;
+    const { data: events, error } = await client
+      .from('analytics_events')
+      .select('*')
+      .eq('portfolio_id', portfolioId);
+
+    if (error || !events) return;
+
+    const pageViews = events.filter(e => e.event_type === 'page_view').length;
+    const linkClicks = events.filter(e => e.event_type === 'link_click' || e.event_type === 'project_click').length;
+    const ctr = pageViews > 0 ? ((linkClicks / pageViews) * 100).toFixed(1) : '0.0';
+
+    $('#analyticsViews').textContent = pageViews.toLocaleString();
+    $('#analyticsClicks').textContent = linkClicks.toLocaleString();
+    $('#analyticsCtr').textContent = `${ctr}%`;
+
+    // Aggregate link clicks
+    const clicksByItem = {};
+    events.filter(e => e.item_id).forEach(e => {
+      clicksByItem[e.item_id] = (clicksByItem[e.item_id] || 0) + 1;
+    });
+
+    const topLinksContainer = $('.top-links');
+    if (topLinksContainer) {
+      const topItems = links.map(l => ({
+        title: l.title,
+        clicks: clicksByItem[l.id] || 0
+      })).sort((a, b) => b.clicks - a.clicks);
+
+      topLinksContainer.innerHTML = `
+        <div>
+          <h2>Top links</h2>
+          <p>Your most popular destinations</p>
+        </div>
+        ${topItems.slice(0, 3).map((item, idx) => `
+          <div class="rank">
+            <b>${idx + 1}</b>
+            <span>${escapeHtml(item.title)}</span>
+            <strong>${item.clicks}</strong>
+          </div>
+        `).join('')}
+      `;
+    }
+  } catch (err) {
+    console.warn('Failed to calculate analytics metrics:', err);
+  }
+}
+
+// 11. Publishing & Sharing Modal
 function setupPublishModal() {
   const modal = $('#modal');
   $('#publishButton')?.addEventListener('click', async () => {
@@ -738,6 +962,9 @@ function setupPublishModal() {
           .from('portfolios')
           .update({ is_published: true, updated_at: new Date().toISOString() })
           .eq('id', currentPortfolio.id);
+        
+        currentPortfolio.is_published = true;
+        $('#visibilityToggle')?.classList.add('on');
       } catch (err) {
         console.warn('Publish update error:', err);
       }
@@ -756,9 +983,18 @@ function setupPublishModal() {
     } catch (_) {}
     showToast('Link copied to clipboard!');
   });
+
+  $('#analyticsCopyBtn')?.addEventListener('click', async () => {
+    const slug = currentProfile?.username || 'amelia';
+    const url = `${window.location.origin}/portfolio.html?u=${slug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch (_) {}
+    showToast('Link copied to clipboard!');
+  });
 }
 
-// 10. Sign Out
+// 12. Sign Out
 function setupSignOut() {
   $('#signOutBtn')?.addEventListener('click', async () => {
     await signOutUser();
@@ -769,7 +1005,7 @@ function setupSignOut() {
   });
 }
 
-// 11. Auto-save Engine
+// 13. Auto-save Engine
 function triggerAutoSave() {
   const indicator = $('#saveStateIndicator');
   if (indicator) {
@@ -794,12 +1030,6 @@ async function savePortfolioData() {
   const role = $('#profileRole')?.textContent || 'Product designer';
   const bio = $('#bio')?.value || '';
 
-  const linksData = $$('.link-item', $('#linksList')).map(item => ({
-    title: $('strong', item)?.textContent || 'Link',
-    url: $('small', item)?.textContent || '#',
-    icon: $('.link-glyph', item)?.textContent || '↗'
-  }));
-
   // Local storage backup
   const localData = {
     name,
@@ -809,7 +1039,7 @@ async function savePortfolioData() {
     theme: selectedTheme,
     font: selectedFont,
     button: selectedButton,
-    links: linksData,
+    links: links,
     projects: projects
   };
   localStorage.setItem('biofolio-profile', JSON.stringify(localData));
@@ -859,9 +1089,23 @@ async function savePortfolioData() {
         projSec = newSec;
       }
 
+      // Sync Links Items
+      if (linkSec) {
+        await client.from('portfolio_items').delete().eq('section_id', linkSec.id);
+        if (links.length > 0) {
+          const linksToInsert = links.map((l, idx) => ({
+            section_id: linkSec.id,
+            title: l.title,
+            url: l.url || null,
+            icon: l.icon || '↗',
+            sort_order: idx
+          }));
+          await client.from('portfolio_items').insert(linksToInsert);
+        }
+      }
+
       // Sync Projects Items
       if (projSec) {
-        // Clear and rewrite project items
         await client.from('portfolio_items').delete().eq('section_id', projSec.id);
         if (projects.length > 0) {
           const itemsToInsert = projects.map((p, idx) => ({
