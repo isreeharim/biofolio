@@ -1,0 +1,14 @@
+const publicStyle = document.createElement('link');
+publicStyle.rel = 'stylesheet';
+publicStyle.href = 'extras.css';
+document.head.append(publicStyle);
+const defaults = { name:'Amelia Parker', role:'Product designer & illustrator', bio:'Designing thoughtful digital experiences with a soft spot for bold ideas, good type, and a perfectly brewed flat white.', theme:'cream', font:'serif', button:'soft', links:[{title:'My work',url:'https://example.com',icon:'Work'},{title:'Instagram',url:'https://instagram.com',icon:'IG'},{title:'LinkedIn',url:'https://linkedin.com',icon:'in'}] };
+const data = {...defaults, ...(JSON.parse(localStorage.getItem('biofolio-profile') || 'null') || {})};
+document.title = `${data.name} - Biofolio`;
+const initials = data.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
+document.querySelector('#publicInitials').textContent = initials;
+document.querySelector('#publicName').textContent = data.name;
+document.querySelector('#publicRole').textContent = data.role;
+document.querySelector('#publicBio').textContent = data.bio;
+document.querySelector('#publicPortfolio').className = `public-portfolio theme-${data.theme} font-${data.font} button-${data.button}`;
+document.querySelector('#publicLinks').innerHTML = data.links.map(link => `<a href="${link.url}" target="_blank" rel="noreferrer"><span>${link.icon}</span>${link.title}<b>Open</b></a>`).join('');
