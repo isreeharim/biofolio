@@ -6,56 +6,78 @@ Biofolio is a free, no-code personal website builder. Its V1 loop is:
 
 **Build → Customize → Publish → Share**
 
-## V1 Backend & Database (Supabase)
+---
 
-- **Project Name**: `biofolio` (`zzdoibodjjltkbqrdlzn`)
+## 🛠️ Full-Stack Technology Stack (Version 1.0)
+
+- **Framework**: Next.js 16 (App Router) + React 19 + TypeScript
+- **Styling**: Tailwind CSS + Custom HSL Design Tokens
+- **UI Components**: shadcn/ui + Radix UI + Lucide React
+- **Motion & Interactions**: Framer Motion
+- **Drag & Drop Builder**: `@dnd-kit/core` + `@dnd-kit/sortable`
+- **Client State**: Zustand (with undo/redo history and device viewport modes)
+- **Forms & Validation**: React Hook Form + Zod
+- **Backend & Database**: Supabase PostgreSQL + Supabase Auth + Supabase Storage (`@supabase/ssr`)
+- **Hosting & CI/CD**: Vercel + GitHub
+
+---
+
+## 🗂️ App Router Architecture
+
+```
+app/
+├── (marketing)/
+│   ├── page.tsx                    # Landing Page with Hero Handle Checker & Interactive Theme Switcher
+│   └── layout.tsx                  # Marketing layout with Navbar & Footer
+├── (auth)/
+│   ├── login/page.tsx              # Fast Password Sign-In & Password Reset
+│   ├── signup/page.tsx             # 6-Digit Email OTP Verification Flow
+│   └── layout.tsx                  # Centered Auth Card Layout
+├── dashboard/
+│   ├── page.tsx                    # Creator Studio Builder (dnd-kit reordering, look customizer, analytics)
+│   ├── components/                 # DevicePreview, ProjectModal, LinkModal, SortableItem
+│   └── layout.tsx                  # Studio topbar with undo/redo & publish status
+├── admin/
+│   ├── page.tsx                    # Admin Control Center (User mgmt, Moderation, Content Reports)
+│   └── layout.tsx                  # Gated Admin Layout
+├── [username]/
+│   ├── page.tsx                    # Ultra-fast SSR Public Portfolio with Dynamic SEO Metadata
+│   ├── PublicPageClient.tsx        # Client click & view tracker, share button, report modal
+│   └── not-found.tsx               # 404 handler for unclaimed handles
+├── api/
+│   ├── analytics/route.ts          # Event logging for views & clicks
+│   └── upload/route.ts             # Validated media uploads to Supabase Storage
+├── globals.css                     # Design tokens & theme classes
+└── layout.tsx                      # Root layout with Google Fonts (Playfair, DM Sans, DM Mono) & Toaster
+```
+
+---
+
+## 🔑 Backend & Supabase Configuration
+
+- **Project ID**: `zzdoibodjjltkbqrdlzn`
 - **Project URL**: `https://zzdoibodjjltkbqrdlzn.supabase.co`
-- **Tables**:
-  - `profiles`: User accounts, handles/usernames, avatar, bio, roles (`user`, `admin`), suspension status.
-  - `portfolios`: Portfolio configurations, slug (`/:username`), template IDs, themes (palette, font, button), publication status.
-  - `portfolio_sections`: Modular sections (`profile_header`, `links`, `projects`, `experience`, `education`, `socials`, `custom_text`) with drag & drop sorting.
-  - `portfolio_items`: Individual items (projects with tags/images, links with icons, work history).
-  - `analytics_events`: Privacy-friendly view & click logging with device & referrer attributes.
-  - `content_reports`: User moderation & content reporting queue for admin oversight.
-- **Storage Buckets**:
-  - `avatars`: Profile pictures (public, 5MB).
-  - `portfolio-media`: Project thumbnails, media & documents (public, 10MB).
-- **Security**: Row Level Security (RLS) active on all tables with admin elevation and automated signup triggers.
+- **Storage Buckets**: `avatars` (5MB), `portfolio-media` (10MB)
+- **Admin Account**:
+  - **Email**: `isreeharim@gmail.com`
+  - **Password**: `812940`
+  - **Role**: `admin` in `public.profiles`
 
-## Current Files
+---
 
-- `index.html` — High-converting Landing Page with real-time handle reservation bar and Auth modals.
-- `landing.css` / `landing.js` — Landing page styling and interactive handle checking logic.
-- `builder.html` / `builder.js` — Creator Studio dashboard with live phone preview, drag & drop links, look & feel customizer, and cloud sync.
-- `portfolio.html` / `portfolio.js` — Standalone public portfolio hydrated dynamically from Supabase with click analytics and moderation report modal.
-- `admin.html` / `admin.css` / `admin.js` — Gated Admin Control Center with user management, portfolio moderation, content report queue, and destructive confirmation modals.
-- `supabase.js` — Supabase client initialization, Auth, Portfolio CRUD, Analytics, Storage, and Admin APIs.
-- `styles.css` / `extras.css` — Responsive design tokens, typography, themes, and public-page styling.
+## 🔄 Developer Workflow & Rules
 
-## Deployment & Live URLs
-
-- **Production Domain**: `https://biofolio.sreeharim.site/`
-  - Landing Page: `https://biofolio.sreeharim.site/`
-  - Creator Studio: `https://biofolio.sreeharim.site/builder.html`
-  - Admin Portal: `https://biofolio.sreeharim.site/admin.html`
-  - Public Profiles: `https://biofolio.sreeharim.site/portfolio.html?u=:username`
-    - e.g. `https://biofolio.sreeharim.site/portfolio.html?u=isreehari`
-
-## Admin Credentials
-- **Email**: `isreeharim@gmail.com`
-- **Role**: `admin`
-- **Username**: `isreehari`
-
-## Developer Workflow & Rules
 - **Continuous Git Sync**: Always stage, commit with descriptive messages, and push all modifications to GitHub `origin/agent/biofolio-v1` automatically after any code edits or feature additions.
 
-## Run Locally
+---
+
+## 🚀 Running Locally
+
 ```powershell
-python -m http.server 4173 --bind 127.0.0.1
+# Development server
+npm run dev
+
+# Production build test
+npm run build
+npm run start
 ```
-- Landing Page: `http://127.0.0.1:4173/index.html`
-- Studio Builder: `http://127.0.0.1:4173/builder.html`
-- Public Profile: `http://127.0.0.1:4173/portfolio.html?u=isreehari`
-- Admin Portal: `http://127.0.0.1:4173/admin.html`
-
-

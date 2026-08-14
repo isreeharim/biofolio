@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 33% 97%;
+    --foreground: 220 13% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 13% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 13% 9%;
+    --primary: 258 55% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 20% 93%;
+    --secondary-foreground: 220 13% 18%;
+    --muted: 40 10% 90%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 258 55% 95%;
+    --accent-foreground: 258 55% 58%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 36 14% 88%;
+    --input: 36 14% 88%;
+    --ring: 258 55% 58%;
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 258 55% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 33% 18%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 18%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 18%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+    --ring: 258 55% 58%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* ================= THEME SYSTEM ================= */
+.theme-cream {
+  --portfolio-bg: #faf6f0;
+  --portfolio-text: #14171a;
+  --portfolio-card-bg: #ffffff;
+  --portfolio-border: #e4dfda;
+  --portfolio-accent: #6e5dcd;
+}
+
+.theme-lavender {
+  --portfolio-bg: #f4f1fa;
+  --portfolio-text: #191426;
+  --portfolio-card-bg: #ffffff;
+  --portfolio-border: #ded8eb;
+  --portfolio-accent: #7868d6;
+}
+
+.theme-ink {
+  --portfolio-bg: #14171a;
+  --portfolio-text: #f3f4f6;
+  --portfolio-card-bg: #1f2429;
+  --portfolio-border: #2d333b;
+  --portfolio-accent: #a78bfa;
+}
+
+.theme-mint {
+  --portfolio-bg: #f0f7f4;
+  --portfolio-text: #12261e;
+  --portfolio-card-bg: #ffffff;
+  --portfolio-border: #d2e4dc;
+  --portfolio-accent: #2d8a65;
+}
+
+/* Typography styles */
+.font-serif {
+  font-family: var(--font-playfair), Georgia, serif;
+}
+
+.font-sans {
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+}
+
+.font-mono {
+  font-family: var(--font-dm-mono), monospace;
+}
+
+/* Button styles */
+.button-soft .theme-button-style {
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.button-sharp .theme-button-style {
+  border-radius: 4px;
+}
+
+.button-outline .theme-button-style {
+  border-radius: 9999px;
+  background: transparent !important;
+  border: 1.5px solid currentColor !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
